@@ -1,0 +1,100 @@
+.clock-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.clock-card h2 {
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.active-profile {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f5f5f5;
+  border-radius: 5px;
+  margin-bottom: 1.5rem;
+}
+
+.active-profile .rate {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.timer {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.elapsed-time {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #667eea;
+  font-family: 'Courier New', monospace;
+}
+
+.status {
+  color: #4caf50;
+  font-size: 1.2rem;
+  margin-top: 0.5rem;
+}
+
+.clock-card textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 1rem;
+}
+
+.clock-card textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.clock-btn {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.clock-in-btn {
+  background: #4caf50;
+  color: white;
+}
+
+.clock-in-btn:hover {
+  background: #45a049;
+}
+
+.clock-out-btn {
+  background: #f44336;
+  color: white;
+}
+
+.clock-out-btn:hover {
+  background: #d32f2f;
+}
+
+.clock-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.no-profile {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+}
