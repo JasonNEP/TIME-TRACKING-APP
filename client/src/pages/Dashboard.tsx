@@ -7,6 +7,7 @@ import ClockInOut from '../components/ClockInOut'
 import ProfileManager from '../components/ProfileManager'
 import TimeEntryList from '../components/TimeEntryList'
 import ManualEntry from '../components/ManualEntry'
+import PinSetupModal from '../components/PinSetupModal'
 import './Dashboard.css'
 
 export default function Dashboard() {
@@ -16,11 +17,33 @@ export default function Dashboard() {
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [showPinSetup, setShowPinSetup] = useState(false)
+  const [hasPinSet, setHasPinSet] = useState(false)
 
   useEffect(() => {
     loadProfiles()
     loadTimeEntries()
+    checkPinStatus()
   }, [])
+
+  const checkPinStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('pin_hash')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!error && data) {
+      const pinIsSet = data.pin_hash !== null && data.pin_hash !== ''
+      setHasPinSet(pinIsSet)
+      if (!pinIsSet) {
+        setShowPinSetup(true)
+      }
+    }
+  }
 
   const loadProfiles = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -71,6 +94,15 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
+      {showPinSetup && !hasPinSet && (
+        <PinSetupModal 
+          onSuccess={() => {
+            setShowPinSetup(false)
+            setHasPinSet(true)
+          }}
+        />
+      )}
+
       <header className="dashboard-header">
         <div className="header-left">
           <h1>Time Tracker</h1>

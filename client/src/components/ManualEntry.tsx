@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import type { Profile } from '../types/database'
+import PinVerifyModal from './PinVerifyModal'
 import './ManualEntry.css'
 
 interface ManualEntryProps {
@@ -10,6 +11,7 @@ interface ManualEntryProps {
 
 export default function ManualEntry({ profiles, onUpdate }: ManualEntryProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [showPinVerify, setShowPinVerify] = useState(false)
   const [formData, setFormData] = useState({
     profile_id: '',
     clock_in: '',
@@ -17,6 +19,15 @@ export default function ManualEntry({ profiles, onUpdate }: ManualEntryProps) {
     notes: ''
   })
   const [loading, setLoading] = useState(false)
+
+  const handleOpenClick = () => {
+    setShowPinVerify(true)
+  }
+
+  const handlePinSuccess = () => {
+    setShowPinVerify(false)
+    setIsOpen(true)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,8 +66,15 @@ export default function ManualEntry({ profiles, onUpdate }: ManualEntryProps) {
 
   return (
     <div className="manual-entry">
+      {showPinVerify && (
+        <PinVerifyModal 
+          onSuccess={handlePinSuccess}
+          onCancel={() => setShowPinVerify(false)}
+        />
+      )}
+
       {!isOpen ? (
-        <button onClick={() => setIsOpen(true)} className="add-manual-btn">
+        <button onClick={handleOpenClick} className="add-manual-btn">
           + Add Manual Time Entry
         </button>
       ) : (

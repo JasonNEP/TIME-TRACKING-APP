@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import type { Profile, TimeEntry } from '../types/database'
 import jsPDF from 'jspdf'
@@ -18,6 +19,7 @@ interface ReportData {
 }
 
 export default function Reports() {
+  const navigate = useNavigate()
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [reportData, setReportData] = useState<ReportData | null>(null)
@@ -296,8 +298,32 @@ export default function Reports() {
       alert('Failed to generate PDF. Make sure jspdf is installed.')
     }
   }
+const handleSignOut = async () => {
+    await supabase.auth.signOut()
+  }
 
   return (
+    <div className="reports-page">
+      <header className="dashboard-header">
+        <div className="header-left">
+          <h1>Time Tracker - Reports</h1>
+        </div>
+        <nav className="header-nav">
+          <button onClick={() => navigate('/dashboard')} className="nav-btn">
+            Dashboard
+          </button>
+          <button onClick={() => navigate('/reports')} className="nav-btn">
+            Reports
+          </button>
+          <button onClick={() => navigate('/settings')} className="nav-btn">
+            Settings
+          </button>
+          <button onClick={handleSignOut} className="sign-out-btn">
+            Sign Out
+          </button>
+        </nav>
+      </header>
+
     <div className="reports-page">
       <h1>Reports</h1>
 

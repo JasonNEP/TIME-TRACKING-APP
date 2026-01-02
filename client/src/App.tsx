@@ -5,6 +5,7 @@ import { Session } from '@supabase/supabase-js'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Reports from './pages/Reports'
+import Settings from './pages/Settings'
 import './App.css'
 
 function App() {
@@ -44,6 +45,10 @@ function App() {
         <Route 
           path="/reports" 
           element={session ? <Reports /> : <Navigate to="/login" />} 
+        />
+        <Route 
+          path="/settings" 
+          element={session ? <Settings /> : <Navigate to="/login" />} 
         />
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>

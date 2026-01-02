@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import type { Profile } from '../types/database'
+import PinVerifyModal from './PinVerifyModal'
 import './ProfileManager.css'
 
 interface ProfileManagerProps {
@@ -23,6 +24,8 @@ export default function ProfileManager({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editRate, setEditRate] = useState('')
+  const [showPinVerify, setShowPinVerify] = useState(false)
+  const [pendingAction, setPendingAction] = useState<{type: 'add' | 'edit' | 'delete', profileId?: string} | null>(null)
 
   const handleAddProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,6 +53,53 @@ export default function ProfileManager({
       onProfilesUpdate()
     }
     setLoading(false)
+  }
+
+  const handleAddClick = () => {
+    setPendingAction({ type: 'add' })
+    setShowPinVerify(true)
+  }
+
+  const handleEditClick = (profile: Profile) => {
+    setPendingAction({ type: 'edit', profileId: profile.id })
+    setEditName(profile.name)
+    setEditRate(profile.hourly_rate.toString())
+    setShowPinVerify(true)
+  }
+
+  const handleDeleteClick = (profileId: string) => {
+    setPendingAction({ type: 'delete', profileId })
+    setShowPinVerify(true)
+  }
+
+  const handlePinSuccess = () => {
+    setShowPinVerify(false)
+    if (pendingAction) {
+      if (pendingAction.type === 'add') {
+        setIsAdding(true)
+      } else if (pendingAction.type === 'edit' && pendingAction.profileId) {
+        setEditingId(pendingAction.profileId)
+      } else if (pendingAction.type === 'delete' && pendingAction.profileId) {
+        confirmDelete(pendingAction.profileId)
+      }
+      setPendingAction(null)
+    }
+  }
+
+  const confirmDelete = async (profileId: string) => {
+    if (!confirm('Are you sure you want to delete this profile?')) return
+
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', profileId)
+
+    if (error) {
+      console.error('Error deleting profile:', error)
+      alert('Failed to delete profile')
+    } else {
+      onProfilesUpdate()
+    }
   }
 
   const handleDeleteProfile = async (profileId: string) => {
@@ -104,6 +154,16 @@ export default function ProfileManager({
 
   return (
     <div className="profile-manager">
+      {showPinVerify && (
+        <PinVerifyModal 
+          onSuccess={handlePinSuccess}
+          onCancel={() => {
+            setShowPinVerify(false)
+            setPendingAction(null)
+          }}
+        />
+      )}
+
       <h2>Profiles</h2>
 
       <div className="profiles-list">
@@ -148,7 +208,7 @@ export default function ProfileManager({
                     className="edit-btn"
                     onClick={(e) => {
                       e.stopPropagation()
-                      startEdit(profile)
+                      handleEditClick(profile)
                     }}
                   >
                     Edit
@@ -157,7 +217,7 @@ export default function ProfileManager({
                     className="delete-btn"
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleDeleteProfile(profile.id)
+                      handleDeleteClick(profile.id)
                     }}
                   >
                     Delete
@@ -172,7 +232,7 @@ export default function ProfileManager({
       {!isAdding ? (
         <button 
           className="add-profile-btn"
-          onClick={() => setIsAdding(true)}
+          onClick={handleAddClick}
         >
           + Add Profile
         </button>
