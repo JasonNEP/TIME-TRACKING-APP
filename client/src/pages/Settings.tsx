@@ -72,8 +72,6 @@ export default function Settings() {
       setLoading(false)
     }
   }
-  const [requirePin, setRequirePin] = useState(true)
-  const [loadingSettings, setLoadingSettings] = useState(true)
 
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault()
