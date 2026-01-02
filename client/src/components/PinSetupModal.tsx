@@ -34,6 +34,8 @@ export default function PinSetupModal({ onSuccess, onCancel }: PinSetupModalProp
 
       // Hash the PIN (simple hash for demo - in production use bcrypt)
       const pinHash = await hashPin(pin)
+      console.log('Setting PIN hash:', pinHash)
+      console.log('Original PIN:', pin)
 
       const { error } = await supabase
         .from('user_roles')
@@ -42,8 +44,10 @@ export default function PinSetupModal({ onSuccess, onCancel }: PinSetupModalProp
 
       if (error) throw error
 
+      console.log('PIN set successfully')
       onSuccess()
     } catch (err: any) {
+      console.error('PIN setup error:', err)
       setError(err.message || 'Failed to set PIN')
     } finally {
       setLoading(false)

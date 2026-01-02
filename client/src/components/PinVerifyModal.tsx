@@ -35,13 +35,17 @@ export default function PinVerifyModal({ onSuccess, onCancel }: PinVerifyModalPr
 
       if (fetchError) throw fetchError
 
+      console.log('Stored PIN hash:', data.pin_hash)
+      
       // Hash entered PIN and compare
       const pinHash = await hashPin(pin)
+      console.log('Entered PIN hash:', pinHash)
+      console.log('Match:', pinHash === data.pin_hash)
       
       if (pinHash === data.pin_hash) {
         onSuccess()
       } else {
-        setError('Incorrect PIN')
+        setError('Incorrect PIN. Check browser console for debug info.')
         setPin('')
       }
     } catch (err: any) {
@@ -88,6 +92,12 @@ export default function PinVerifyModal({ onSuccess, onCancel }: PinVerifyModalPr
             <button type="button" onClick={onCancel} className="cancel-btn">
               Cancel
             </button>
+          </div>
+          
+          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+            <a href="/settings" style={{ color: '#667eea', textDecoration: 'underline', fontSize: '0.9rem' }}>
+              Forgot PIN?
+            </a>
           </div>
         </form>
       </div>
