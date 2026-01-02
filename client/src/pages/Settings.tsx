@@ -202,16 +202,36 @@ export default function Settings() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
+      console.log('User ID:', user.id)
+
       const pinHash = await hashPin(directPin)
       console.log('Direct set PIN:', directPin)
       console.log('Direct set hash:', pinHash)
 
-      const { error: updateError } = await supabase
+      // Check current state
+      const { data: checkData, error: checkError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      console.log('Current user_roles entry:', checkData)
+      console.log('Check error:', checkError)
+
+      const { data: updateData, error: updateError } = await supabase
         .from('user_roles')
         .update({ pin_hash: pinHash } as any)
         .eq('user_id', user.id)
+        .select()
+
+      console.log('Update result:', updateData)
+      console.log('Update error:', updateError)
 
       if (updateError) throw updateError
+
+      if (!updateData || updateData.length === 0) {
+        throw new Error('Update returned no data - may be RLS policy issue')
+      }
 
       setSuccess('PIN set successfully! Try using it now.')
       setShowDirectSet(false)

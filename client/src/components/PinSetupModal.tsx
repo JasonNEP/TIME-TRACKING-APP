@@ -32,15 +32,31 @@ export default function PinSetupModal({ onSuccess, onCancel }: PinSetupModalProp
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
+      console.log('User ID:', user.id)
+
       // Hash the PIN (simple hash for demo - in production use bcrypt)
       const pinHash = await hashPin(pin)
       console.log('Setting PIN hash:', pinHash)
       console.log('Original PIN:', pin)
 
-      const { error } = await supabase
+      // First check if user_roles entry exists
+      const { data: checkData, error: checkError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      console.log('Existing user_roles entry:', checkData)
+      console.log('Check error:', checkError)
+
+      const { data: updateData, error } = await supabase
         .from('user_roles')
         .update({ pin_hash: pinHash } as any)
         .eq('user_id', user.id)
+        .select()
+
+      console.log('Update result:', updateData)
+      console.log('Update error:', error)
 
       if (error) throw error
 
