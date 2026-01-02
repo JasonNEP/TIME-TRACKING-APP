@@ -15,6 +15,9 @@ export default function Settings() {
   const [success, setSuccess] = useState('')
   const [showResetForm, setShowResetForm] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [showDirectSet, setShowDirectSet] = useState(false)
+  const [directPin, setDirectPin] = useState('')
+  const [directConfirm, setDirectConfirm] = useState('')
 
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -179,6 +182,49 @@ export default function Settings() {
     }
   }
 
+  const handleDirectSetPin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (directPin.length !== 4 || !/^\d{4}$/.test(directPin)) {
+      setError('PIN must be exactly 4 digits')
+      return
+    }
+
+    if (directPin !== directConfirm) {
+      setError('PINs do not match')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      const pinHash = await hashPin(directPin)
+      console.log('Direct set PIN:', directPin)
+      console.log('Direct set hash:', pinHash)
+
+      const { error: updateError } = await supabase
+        .from('user_roles')
+        .update({ pin_hash: pinHash } as any)
+        .eq('user_id', user.id)
+
+      if (updateError) throw updateError
+
+      setSuccess('PIN set successfully! Try using it now.')
+      setShowDirectSet(false)
+      setDirectPin('')
+      setDirectConfirm('')
+    } catch (err: any) {
+      console.error('Direct set error:', err)
+      setError(err.message || 'Failed to set PIN')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const hashPin = async (pin: string): Promise<string> => {
     const encoder = new TextEncoder()
     const data = encoder.encode(pin)
@@ -253,6 +299,58 @@ export default function Settings() {
             {loading ? 'Changing...' : 'Change PIN'}
           </button>
         </form>
+      </div>
+
+      <div className="settings-section" style={{ background: '#fff9e6', border: '2px solid #ffd700' }}>
+        <h2>🔧 Quick PIN Setup (Troubleshooting)</h2>
+        <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
+          Use this if your PIN isn't working. This sets a new PIN without requiring the old one.
+        </p>
+        {!showDirectSet ? (
+          <button onClick={() => setShowDirectSet(true)} className="secondary-btn">
+            Set New PIN (Skip Verification)
+          </button>
+        ) : (
+          <form onSubmit={handleDirectSetPin}>
+            <div className="form-group">
+              <label>New PIN:</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={directPin}
+                onChange={(e) => setDirectPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Confirm PIN:</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={directConfirm}
+                onChange={(e) => setDirectConfirm(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+                required
+              />
+            </div>
+
+            <button type="submit" disabled={loading}>
+              {loading ? 'Setting...' : 'Set PIN Now'}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setShowDirectSet(false)}
+              className="cancel-btn"
+            >
+              Cancel
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="settings-section">
