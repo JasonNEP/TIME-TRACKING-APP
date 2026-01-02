@@ -51,7 +51,7 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
         profile_id: activeProfile.id,
         clock_in: new Date().toISOString(),
         notes: notes || null,
-      })
+      } as any)
 
     if (error) {
       console.error('Error clocking in:', error)
