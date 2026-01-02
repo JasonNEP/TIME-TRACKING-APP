@@ -38,7 +38,7 @@ export default function ProfileManager({
         user_id: user.id,
         name: newProfileName,
         hourly_rate: parseFloat(newProfileRate),
-      })
+      } as any)
 
     if (error) {
       console.error('Error adding profile:', error)
@@ -77,7 +77,7 @@ export default function ProfileManager({
       .update({
         name: editName,
         hourly_rate: parseFloat(editRate),
-      })
+      } as any)
       .eq('id', profileId)
 
     if (error) {

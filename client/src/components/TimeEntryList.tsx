@@ -79,7 +79,7 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
         clock_out: editForm.clock_out ? new Date(editForm.clock_out).toISOString() : null,
         notes: editForm.notes || null,
         updated_at: new Date().toISOString()
-      })
+      } as any)
       .eq('id', entryId)
 
     if (error) {
