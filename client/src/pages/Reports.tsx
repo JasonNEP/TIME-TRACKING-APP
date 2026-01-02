@@ -298,7 +298,8 @@ export default function Reports() {
       alert('Failed to generate PDF. Make sure jspdf is installed.')
     }
   }
-const handleSignOut = async () => {
+
+  const handleSignOut = async () => {
     await supabase.auth.signOut()
   }
 
@@ -324,7 +325,6 @@ const handleSignOut = async () => {
         </nav>
       </header>
 
-    <div className="reports-page">
       <h1>Reports</h1>
 
       <div className="date-filters">
