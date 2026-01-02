@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 
 export function usePinRequired() {
-  const [pinRequired, setPinRequired] = useState(true)
+  const [pinRequired, setPinRequired] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export function usePinRequired() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        setPinRequired(true)
+        setPinRequired(false)
         setLoading(false)
         return
       }
@@ -24,10 +24,10 @@ export function usePinRequired() {
         .eq('user_id', user.id)
         .single()
 
-      setPinRequired(data?.require_pin ?? true)
+      setPinRequired(data?.require_pin ?? false)
     } catch (err) {
       console.error('Error checking PIN requirement:', err)
-      setPinRequired(true)
+      setPinRequired(false)
     } finally {
       setLoading(false)
     }

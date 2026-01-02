@@ -18,7 +18,7 @@ export default function Settings() {
   const [showDirectSet, setShowDirectSet] = useState(false)
   const [directPin, setDirectPin] = useState('')
   const [directConfirm, setDirectConfirm] = useState('')
-  const [requirePin, setRequirePin] = useState(true)
+  const [requirePin, setRequirePin] = useState(false)
   const [loadingSettings, setLoadingSettings] = useState(true)
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function Settings() {
         .single()
 
       if (data) {
-        setRequirePin(data.require_pin ?? true)
+        setRequirePin(data.require_pin ?? false)
       }
     } catch (err) {
       console.error('Error loading settings:', err)
@@ -332,7 +332,7 @@ export default function Settings() {
         <p style={{ fontSize: '0.95rem', color: '#666', marginBottom: '1rem' }}>
           {requirePin 
             ? 'PIN is currently required for all admin actions (edit, delete, manual entry, manage profiles)'
-            : 'PIN requirement is disabled - admin actions work without verification'
+            : 'PIN requirement is disabled - admin actions work without verification (default)'
           }
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -349,6 +349,9 @@ export default function Settings() {
             </span>
           </label>
         </div>
+        <p style={{ fontSize: '0.85rem', color: '#999', marginTop: '0.5rem' }}>
+          Note: You can also toggle this quickly from the Dashboard page
+        </p>
       </div>
 
       <div className="settings-section">
