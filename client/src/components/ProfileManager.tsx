@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import type { Profile } from '../types/database'
 import PinVerifyModal from './PinVerifyModal'
+import { usePinRequired } from '../hooks/usePinRequired'
 import './ProfileManager.css'
 
 interface ProfileManagerProps {
@@ -17,6 +18,7 @@ export default function ProfileManager({
   onProfilesUpdate, 
   onProfileSelect 
 }: ProfileManagerProps) {
+  const { pinRequired } = usePinRequired()
   const [isAdding, setIsAdding] = useState(false)
   const [newProfileName, setNewProfileName] = useState('')
   const [newProfileRate, setNewProfileRate] = useState('')
@@ -56,20 +58,34 @@ export default function ProfileManager({
   }
 
   const handleAddClick = () => {
-    setPendingAction({ type: 'add' })
-    setShowPinVerify(true)
+    if (pinRequired) {
+      setPendingAction({ type: 'add' })
+      setShowPinVerify(true)
+    } else {
+      setIsAdding(true)
+    }
   }
 
   const handleEditClick = (profile: Profile) => {
-    setPendingAction({ type: 'edit', profileId: profile.id })
-    setEditName(profile.name)
-    setEditRate(profile.hourly_rate.toString())
-    setShowPinVerify(true)
+    if (pinRequired) {
+      setPendingAction({ type: 'edit', profileId: profile.id })
+      setEditName(profile.name)
+      setEditRate(profile.hourly_rate.toString())
+      setShowPinVerify(true)
+    } else {
+      setEditingId(profile.id)
+      setEditName(profile.name)
+      setEditRate(profile.hourly_rate.toString())
+    }
   }
 
   const handleDeleteClick = (profileId: string) => {
-    setPendingAction({ type: 'delete', profileId })
-    setShowPinVerify(true)
+    if (pinRequired) {
+      setPendingAction({ type: 'delete', profileId })
+      setShowPinVerify(true)
+    } else {
+      confirmDelete(profileId)
+    }
   }
 
   const handlePinSuccess = () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import './Settings.css'
@@ -18,6 +18,62 @@ export default function Settings() {
   const [showDirectSet, setShowDirectSet] = useState(false)
   const [directPin, setDirectPin] = useState('')
   const [directConfirm, setDirectConfirm] = useState('')
+  const [requirePin, setRequirePin] = useState(true)
+  const [loadingSettings, setLoadingSettings] = useState(true)
+
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data } = await supabase
+        .from('user_roles')
+        .select('require_pin')
+        .eq('user_id', user.id)
+        .single()
+
+      if (data) {
+        setRequirePin(data.require_pin ?? true)
+      }
+    } catch (err) {
+      console.error('Error loading settings:', err)
+    } finally {
+      setLoadingSettings(false)
+    }
+  }
+
+  const handleToggleRequirePin = async () => {
+    setError('')
+    setSuccess('')
+    setLoading(true)
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      const newValue = !requirePin
+
+      const { error: updateError } = await supabase
+        .from('user_roles')
+        .update({ require_pin: newValue } as any)
+        .eq('user_id', user.id)
+
+      if (updateError) throw updateError
+
+      setRequirePin(newValue)
+      setSuccess(newValue ? 'PIN requirement enabled' : 'PIN requirement disabled')
+    } catch (err: any) {
+      setError(err.message || 'Failed to update setting')
+    } finally {
+      setLoading(false)
+    }
+  }
+  const [requirePin, setRequirePin] = useState(true)
+  const [loadingSettings, setLoadingSettings] = useState(true)
 
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -272,6 +328,30 @@ export default function Settings() {
       </div>
       
       <h1>Settings</h1>
+
+      <div className="settings-section">
+        <h2>PIN Requirement for Admin Actions</h2>
+        <p style={{ fontSize: '0.95rem', color: '#666', marginBottom: '1rem' }}>
+          {requirePin 
+            ? 'PIN is currently required for all admin actions (edit, delete, manual entry, manage profiles)'
+            : 'PIN requirement is disabled - admin actions work without verification'
+          }
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={requirePin}
+              onChange={handleToggleRequirePin}
+              disabled={loadingSettings || loading}
+              style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: '1rem', fontWeight: 'bold' }}>
+              Require PIN for admin actions
+            </span>
+          </label>
+        </div>
+      </div>
 
       <div className="settings-section">
         <h2>Change PIN</h2>

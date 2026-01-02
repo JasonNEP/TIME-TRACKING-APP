@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import type { Profile, TimeEntry } from '../types/database'
 import PinVerifyModal from './PinVerifyModal'
+import { usePinRequired } from '../hooks/usePinRequired'
 import './TimeEntryList.css'
 
 interface TimeEntryListProps {
@@ -12,6 +13,7 @@ interface TimeEntryListProps {
 }
 
 export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate }: TimeEntryListProps) {
+  const { pinRequired } = usePinRequired()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showPinVerify, setShowPinVerify] = useState(false)
   const [pendingAction, setPendingAction] = useState<{type: 'edit' | 'delete', entryId: string} | null>(null)
@@ -66,18 +68,31 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
   }
 
   const handleEdit = (entry: TimeEntry) => {
-    setPendingAction({ type: 'edit', entryId: entry.id })
-    setEditForm({
-      clock_in: entry.clock_in.slice(0, 16),
-      clock_out: entry.clock_out ? entry.clock_out.slice(0, 16) : '',
-      notes: entry.notes || ''
-    })
-    setShowPinVerify(true)
+    if (pinRequired) {
+      setPendingAction({ type: 'edit', entryId: entry.id })
+      setEditForm({
+        clock_in: entry.clock_in.slice(0, 16),
+        clock_out: entry.clock_out ? entry.clock_out.slice(0, 16) : '',
+        notes: entry.notes || ''
+      })
+      setShowPinVerify(true)
+    } else {
+      setEditingId(entry.id)
+      setEditForm({
+        clock_in: entry.clock_in.slice(0, 16),
+        clock_out: entry.clock_out ? entry.clock_out.slice(0, 16) : '',
+        notes: entry.notes || ''
+      })
+    }
   }
 
   const handleDelete = (entryId: string) => {
-    setPendingAction({ type: 'delete', entryId })
-    setShowPinVerify(true)
+    if (pinRequired) {
+      setPendingAction({ type: 'delete', entryId })
+      setShowPinVerify(true)
+    } else {
+      confirmDelete(entryId)
+    }
   }
 
   const handlePinSuccess = () => {

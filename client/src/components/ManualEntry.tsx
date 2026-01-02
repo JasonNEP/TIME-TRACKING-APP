@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import type { Profile } from '../types/database'
 import PinVerifyModal from './PinVerifyModal'
+import { usePinRequired } from '../hooks/usePinRequired'
 import './ManualEntry.css'
 
 interface ManualEntryProps {
@@ -10,6 +11,7 @@ interface ManualEntryProps {
 }
 
 export default function ManualEntry({ profiles, onUpdate }: ManualEntryProps) {
+  const { pinRequired } = usePinRequired()
   const [isOpen, setIsOpen] = useState(false)
   const [showPinVerify, setShowPinVerify] = useState(false)
   const [formData, setFormData] = useState({
@@ -21,7 +23,11 @@ export default function ManualEntry({ profiles, onUpdate }: ManualEntryProps) {
   const [loading, setLoading] = useState(false)
 
   const handleOpenClick = () => {
-    setShowPinVerify(true)
+    if (pinRequired) {
+      setShowPinVerify(true)
+    } else {
+      setIsOpen(true)
+    }
   }
 
   const handlePinSuccess = () => {
