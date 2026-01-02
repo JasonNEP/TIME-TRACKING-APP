@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import './Settings.css'
 
 export default function Settings() {
+  const navigate = useNavigate()
   const [currentPin, setCurrentPin] = useState('')
   const [newPin, setNewPin] = useState('')
   const [confirmNewPin, setConfirmNewPin] = useState('')
@@ -186,6 +188,22 @@ export default function Settings() {
 
   return (
     <div className="settings-page">
+      <div style={{ marginBottom: '1rem' }}>
+        <button 
+          onClick={() => navigate('/dashboard')}
+          style={{
+            padding: '0.5rem 1rem',
+            background: '#f0f0f0',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontSize: '1rem'
+          }}
+        >
+          ← Back to Dashboard
+        </button>
+      </div>
+      
       <h1>Settings</h1>
 
       <div className="settings-section">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import './PinModal.css'
 
@@ -8,6 +9,7 @@ interface PinVerifyModalProps {
 }
 
 export default function PinVerifyModal({ onSuccess, onCancel }: PinVerifyModalProps) {
+  const navigate = useNavigate()
   const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -94,9 +96,24 @@ export default function PinVerifyModal({ onSuccess, onCancel }: PinVerifyModalPr
             </button>
           </div>
           
-          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-            <a href="/settings" style={{ color: '#667eea', textDecoration: 'underline', fontSize: '0.9rem' }}>
+          <dibutton 
+              type="button"
+              onClick={() => {
+                onCancel()
+                navigate('/settings')
+              }}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: '#667eea', 
+                textDecoration: 'underline', 
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                padding: 0
+              }}
+            >
               Forgot PIN?
+            </buttonorgot PIN?
             </a>
           </div>
         </form>
