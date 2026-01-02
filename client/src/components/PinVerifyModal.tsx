@@ -36,6 +36,7 @@ export default function PinVerifyModal({ onSuccess, onCancel }: PinVerifyModalPr
         .single()
 
       if (fetchError) throw fetchError
+      if (!data) throw new Error('No PIN set for this user')
 
       console.log('Stored PIN hash:', data.pin_hash)
       
@@ -96,7 +97,8 @@ export default function PinVerifyModal({ onSuccess, onCancel }: PinVerifyModalPr
             </button>
           </div>
           
-          <dibutton 
+          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+            <button 
               type="button"
               onClick={() => {
                 onCancel()
@@ -113,8 +115,7 @@ export default function PinVerifyModal({ onSuccess, onCancel }: PinVerifyModalPr
               }}
             >
               Forgot PIN?
-            </buttonorgot PIN?
-            </a>
+            </button>
           </div>
         </form>
       </div>

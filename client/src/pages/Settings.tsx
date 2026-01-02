@@ -44,6 +44,7 @@ export default function Settings() {
         .single()
 
       if (fetchError) throw fetchError
+      if (!data) throw new Error('No user role found')
 
       const currentPinHash = await hashPin(currentPin)
       if (currentPinHash !== data.pin_hash) {
