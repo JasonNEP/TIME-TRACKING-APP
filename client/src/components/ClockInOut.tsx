@@ -73,7 +73,7 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
       .update({ 
         clock_out: new Date().toISOString(),
         notes: notes || activeEntry.notes 
-      })
+      } as any)
       .eq('id', activeEntry.id)
 
     if (error) {

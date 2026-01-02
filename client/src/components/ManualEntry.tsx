@@ -38,7 +38,7 @@ export default function ManualEntry({ profiles, onUpdate }: ManualEntryProps) {
           clock_in: new Date(formData.clock_in).toISOString(),
           clock_out: new Date(formData.clock_out).toISOString(),
           notes: formData.notes || null
-        })
+        } as any)
 
       if (error) throw error
 
