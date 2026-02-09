@@ -10,18 +10,27 @@ interface TimeEntryListProps {
   profiles: Profile[]
   isAdmin: boolean
   onUpdate: () => void
+  activeProfile: Profile | null
 }
 
-export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate }: TimeEntryListProps) {
+export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate, activeProfile }: TimeEntryListProps) {
   const { pinRequired } = usePinRequired()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showPinVerify, setShowPinVerify] = useState(false)
-  const [pendingAction, setPendingAction] = useState<{type: 'edit' | 'delete', entryId: string} | null>(null)
+  const [pendingAction, setPendingAction] = useState<{type: 'edit' | 'delete' | 'add', entryId?: string} | null>(null)
   const [editForm, setEditForm] = useState<{
     clock_in: string
     clock_out: string
     notes: string
   }>({ clock_in: '', clock_out: '', notes: '' })
+  const [showManualEntry, setShowManualEntry] = useState(false)
+  const [manualEntryForm, setManualEntryForm] = useState({
+    profile_id: '',
+    clock_in: '',
+    clock_out: '',
+    notes: ''
+  })
+  const [loading, setLoading] = useState(false)
   const getProfileName = (profileId: string) => {
     const profile = profiles.find(p => p.id === profileId)
     return profile?.name || 'Unknown'
@@ -98,12 +107,58 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
   const handlePinSuccess = () => {
     setShowPinVerify(false)
     if (pendingAction) {
-      if (pendingAction.type === 'edit') {
+      if (pendingAction.type === 'edit' && pendingAction.entryId) {
         setEditingId(pendingAction.entryId)
-      } else if (pendingAction.type === 'delete') {
+      } else if (pendingAction.type === 'delete' && pendingAction.entryId) {
         confirmDelete(pendingAction.entryId)
+      } else if (pendingAction.type === 'add') {
+        setShowManualEntry(true)
       }
       setPendingAction(null)
+    }
+  }
+
+  const handleAddManualEntry = () => {
+    if (pinRequired) {
+      setPendingAction({ type: 'add' })
+      setShowPinVerify(true)
+    } else {
+      setShowManualEntry(true)
+    }
+  }
+
+  const handleManualEntrySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualEntryForm.profile_id || !manualEntryForm.clock_in || !manualEntryForm.clock_out) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('time_entries')
+        .insert({
+          user_id: user.id,
+          profile_id: manualEntryForm.profile_id,
+          clock_in: new Date(manualEntryForm.clock_in).toISOString(),
+          clock_out: new Date(manualEntryForm.clock_out).toISOString(),
+          notes: manualEntryForm.notes || null
+        } as any)
+
+      if (error) throw error
+
+      setManualEntryForm({ profile_id: '', clock_in: '', clock_out: '', notes: '' })
+      setShowManualEntry(false)
+      onUpdate()
+    } catch (error: any) {
+      console.error('Error adding manual entry:', error)
+      alert('Failed to add manual entry')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -155,7 +210,83 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
         />
       )}
 
-      <h2>Recent Time Entries</h2>
+      <div className="list-header">
+        <h2>Recent Time Entries</h2>
+        {isAdmin && (
+          <button onClick={handleAddManualEntry} className="add-manual-btn-inline">
+            + Add Manual Entry
+          </button>
+        )}
+      </div>
+
+      {showManualEntry && (
+        <div className="manual-entry-form-inline">
+          <h3>Add Manual Time Entry</h3>
+          <form onSubmit={handleManualEntrySubmit}>
+            <div className="form-group">
+              <label>Profile *</label>
+              <select
+                value={manualEntryForm.profile_id}
+                onChange={(e) => setManualEntryForm({ ...manualEntryForm, profile_id: e.target.value })}
+                required
+              >
+                <option value="">Select a profile</option>
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name} (${profile.hourly_rate}/hr)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Clock In *</label>
+              <input
+                type="datetime-local"
+                value={manualEntryForm.clock_in}
+                onChange={(e) => setManualEntryForm({ ...manualEntryForm, clock_in: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Clock Out *</label>
+              <input
+                type="datetime-local"
+                value={manualEntryForm.clock_out}
+                onChange={(e) => setManualEntryForm({ ...manualEntryForm, clock_out: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Notes</label>
+              <textarea
+                value={manualEntryForm.notes}
+                onChange={(e) => setManualEntryForm({ ...manualEntryForm, notes: e.target.value })}
+                rows={3}
+                placeholder="Optional notes..."
+              />
+            </div>
+
+            <div className="form-actions">
+              <button type="submit" disabled={loading} className="submit-btn">
+                {loading ? 'Adding...' : 'Add Entry'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManualEntry(false)
+                  setManualEntryForm({ profile_id: '', clock_in: '', clock_out: '', notes: '' })
+                }}
+                className="cancel-btn"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       
       {timeEntries.length === 0 ? (
         <p className="no-entries">No time entries yet. Clock in to get started!</p>

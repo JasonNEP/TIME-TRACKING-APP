@@ -68,12 +68,9 @@
 }
 
 .dashboard-content {
-  display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 1.5rem;
-  padding: 2rem;
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 2rem;
 }
 
 .main-section {
@@ -84,7 +81,6 @@
 
 @media (max-width: 768px) {
   .dashboard-content {
-    grid-template-columns: 1fr;
     padding: 1rem;
   }
   
@@ -97,5 +93,11 @@
   .header-nav {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .nav-btn {
+    flex: 1;
+    min-width: 80px;
   }
 }

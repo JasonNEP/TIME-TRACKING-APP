@@ -5,6 +5,118 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.list-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.add-manual-btn-inline {
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+  white-space: nowrap;
+}
+
+.add-manual-btn-inline:hover {
+  background: #5568d3;
+}
+
+.manual-entry-form-inline {
+  background: #f8f9ff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 2px solid #667eea;
+}
+
+.manual-entry-form-inline h3 {
+  margin: 0 0 1rem 0;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
+.manual-entry-form-inline .form-group {
+  margin-bottom: 1rem;
+}
+
+.manual-entry-form-inline label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.manual-entry-form-inline input,
+.manual-entry-form-inline select,
+.manual-entry-form-inline textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.manual-entry-form-inline textarea {
+  resize: vertical;
+}
+
+.manual-entry-form-inline .form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.manual-entry-form-inline .submit-btn {
+  flex: 1;
+  padding: 0.75rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.manual-entry-form-inline .submit-btn:hover {
+  background: #5568d3;
+}
+
+.manual-entry-form-inline .submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.manual-entry-form-inline .cancel-btn {
+  flex: 1;
+  padding: 0.75rem;
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.manual-entry-form-inline .cancel-btn:hover {
+  background: #e0e0e0;
+}
+
 .time-entry-list h2 {
   margin-bottom: 1.5rem;
   color: #333;

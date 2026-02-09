@@ -4,9 +4,8 @@ import { supabase } from '../services/supabase'
 import type { Profile, TimeEntry } from '../types/database'
 import { useUserRole } from '../hooks/useUserRole'
 import ClockInOut from '../components/ClockInOut'
-import ProfileManager from '../components/ProfileManager'
+import ProfileSelector from '../components/ProfileSelector'
 import TimeEntryList from '../components/TimeEntryList'
-import ManualEntry from '../components/ManualEntry'
 import PinSetupModal from '../components/PinSetupModal'
 import './Dashboard.css'
 
@@ -22,9 +21,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadProfiles()
-    loadTimeEntries()
     checkPinStatus()
   }, [])
+
+  useEffect(() => {
+    if (activeProfile) {
+      loadTimeEntries()
+    }
+  }, [activeProfile])
 
   const checkPinStatus = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -70,10 +74,17 @@ export default function Dashboard() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('time_entries')
       .select('*')
       .eq('user_id', user.id)
+
+    // Filter by active profile if one is selected
+    if (activeProfile) {
+      query = query.eq('profile_id', activeProfile.id)
+    }
+
+    const { data, error } = await query
       .order('clock_in', { ascending: false })
       .limit(10)
 
@@ -126,12 +137,12 @@ export default function Dashboard() {
 
       <div className="dashboard-content">
         <div className="main-section">
-          {isAdmin && (
-            <ManualEntry 
-              profiles={profiles}
-              onUpdate={loadTimeEntries}
-            />
-          )}
+          <ProfileSelector
+            profiles={profiles}
+            activeProfile={activeProfile}
+            onProfileSelect={setActiveProfile}
+            onProfilesUpdate={loadProfiles}
+          />
           <ClockInOut 
             activeProfile={activeProfile}
             onUpdate={loadTimeEntries}
@@ -141,15 +152,7 @@ export default function Dashboard() {
             profiles={profiles}
             isAdmin={isAdmin}
             onUpdate={loadTimeEntries}
-          />
-        </div>
-
-        <div className="sidebar">
-          <ProfileManager
-            profiles={profiles}
             activeProfile={activeProfile}
-            onProfilesUpdate={loadProfiles}
-            onProfileSelect={setActiveProfile}
           />
         </div>
       </div>
