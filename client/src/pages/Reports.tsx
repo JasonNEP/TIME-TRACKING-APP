@@ -418,6 +418,54 @@ export default function Reports() {
             </table>
           </div>
 
+          <div className="detailed-entries">
+            <h2>Detailed Time Entries</h2>
+            {reportData.entriesByProfile.map(({ profile }) => {
+              const profileEntries = reportData.entries.filter(
+                entry => entry.profile_id === profile.id && entry.clock_out
+              )
+              
+              if (profileEntries.length === 0) return null
+
+              return (
+                <div key={profile.id} className="profile-entries-section">
+                  <h3>{profile.name} (${profile.hourly_rate}/hr)</h3>
+                  <table className="entries-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                        <th>Hours</th>
+                        <th>Earnings</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profileEntries.map(entry => {
+                        const clockIn = new Date(entry.clock_in)
+                        const clockOut = entry.clock_out ? new Date(entry.clock_out) : null
+                        const hours = clockOut ? (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60) : 0
+                        const earnings = hours * profile.hourly_rate
+
+                        return (
+                          <tr key={entry.id}>
+                            <td>{clockIn.toLocaleDateString()}</td>
+                            <td>{clockIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                            <td>{clockOut ? clockOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                            <td>{hours.toFixed(2)}</td>
+                            <td>${earnings.toFixed(2)}</td>
+                            <td>{entry.notes || '-'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            })}
+          </div>
+
           <div className="export-buttons">
             <button onClick={exportToCSV} className="export-btn">
               Export to CSV
