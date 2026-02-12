@@ -61,30 +61,32 @@ export default function Dashboard() {
 
     if (error) {
       console.error('Error loading profiles:', error)
+      setLoading(false)
     } else {
       setProfiles(data || [])
       if (data && data.length > 0) {
         setActiveProfile(data[0])
+      } else {
+        setTimeEntries([])
       }
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const loadTimeEntries = async () => {
+    if (!activeProfile) {
+      setTimeEntries([])
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    let query = supabase
+    const { data, error } = await supabase
       .from('time_entries')
       .select('*')
       .eq('user_id', user.id)
-
-    // Filter by active profile if one is selected
-    if (activeProfile) {
-      query = query.eq('profile_id', activeProfile.id)
-    }
-
-    const { data, error } = await query
+      .eq('profile_id', activeProfile.id)
       .order('clock_in', { ascending: false })
       .limit(10)
 
