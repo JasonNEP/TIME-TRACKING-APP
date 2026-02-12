@@ -51,7 +51,10 @@ export default function Dashboard() {
 
   const loadProfiles = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     const { data, error } = await supabase
       .from('profiles')
@@ -61,7 +64,6 @@ export default function Dashboard() {
 
     if (error) {
       console.error('Error loading profiles:', error)
-      setLoading(false)
     } else {
       setProfiles(data || [])
       if (data && data.length > 0) {
@@ -69,8 +71,8 @@ export default function Dashboard() {
       } else {
         setTimeEntries([])
       }
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   const loadTimeEntries = async () => {
