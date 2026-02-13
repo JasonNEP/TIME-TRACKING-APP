@@ -104,6 +104,7 @@ export default function Reports() {
         earnings: number
         entryCount: number
       }>()
+      const filteredEntries: TimeEntry[] = []
 
       entries?.forEach((entry: TimeEntry) => {
         if (!entry.clock_out) return
@@ -115,6 +116,9 @@ export default function Reports() {
         if (!selectedProfiles.includes('all') && !selectedProfiles.includes(entry.profile_id)) {
           return
         }
+
+        // Add to filtered entries
+        filteredEntries.push(entry)
 
         const hours = (new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime()) / (1000 * 60 * 60)
         const earnings = hours * profile.hourly_rate
@@ -140,7 +144,7 @@ export default function Reports() {
       setReportData({
         totalHours,
         totalEarnings,
-        entries: entries || [],
+        entries: filteredEntries,
         entriesByProfile: Array.from(profileMap.values())
       })
     } catch (error: any) {
