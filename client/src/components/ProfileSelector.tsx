@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Profile } from '../types/database'
 import ProfileManager from './ProfileManager'
 import './ProfileSelector.css'
@@ -17,6 +17,20 @@ export default function ProfileSelector({
   onProfilesUpdate
 }: ProfileSelectorProps) {
   const [showManageModal, setShowManageModal] = useState(false)
+  const [showRates, setShowRates] = useState(() => {
+    const saved = localStorage.getItem('showHourlyRates')
+    return saved ? JSON.parse(saved) : false
+  })
+
+  useEffect(() => {
+    const handleVisibilityChange = (e: CustomEvent) => {
+      setShowRates(e.detail)
+    }
+    window.addEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
+    return () => {
+      window.removeEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
+    }
+  }, [])
 
   return (
     <>
@@ -37,7 +51,7 @@ export default function ProfileSelector({
             ) : (
               profiles.map((profile) => (
                 <option key={profile.id} value={profile.id}>
-                  {profile.name} - ${profile.hourly_rate}/hr
+                  {profile.name}{showRates ? ` - $${profile.hourly_rate}/hr` : ''}
                 </option>
               ))
             )}

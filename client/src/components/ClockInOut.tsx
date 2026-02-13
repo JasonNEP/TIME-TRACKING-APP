@@ -12,6 +12,20 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showRates, setShowRates] = useState(() => {
+    const saved = localStorage.getItem('showHourlyRates')
+    return saved ? JSON.parse(saved) : false
+  })
+
+  useEffect(() => {
+    const handleVisibilityChange = (e: CustomEvent) => {
+      setShowRates(e.detail)
+    }
+    window.addEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
+    return () => {
+      window.removeEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
+    }
+  }, [])
 
   useEffect(() => {
     checkActiveEntry()
@@ -120,7 +134,7 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
         <>
           <div className="active-profile">
             <strong>Active Profile:</strong> {activeProfile.name}
-            <span className="rate">${activeProfile.hourly_rate}/hr</span>
+            {showRates && <span className="rate">${activeProfile.hourly_rate}/hr</span>}
           </div>
 
           {activeEntry && (

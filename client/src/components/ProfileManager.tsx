@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import type { Profile } from '../types/database'
 import PinVerifyModal from './PinVerifyModal'
@@ -28,6 +28,16 @@ export default function ProfileManager({
   const [editRate, setEditRate] = useState('')
   const [showPinVerify, setShowPinVerify] = useState(false)
   const [pendingAction, setPendingAction] = useState<{type: 'add' | 'edit' | 'delete', profileId?: string} | null>(null)
+  const [showRates, setShowRates] = useState(() => {
+    const saved = localStorage.getItem('showHourlyRates')
+    return saved ? JSON.parse(saved) : false
+  })
+
+  useEffect(() => {
+    localStorage.setItem('showHourlyRates', JSON.stringify(showRates))
+    // Dispatch event so other components can react
+    window.dispatchEvent(new CustomEvent('hourlyRatesVisibilityChanged', { detail: showRates }))
+  }, [showRates])
 
   const handleAddProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -180,7 +190,17 @@ export default function ProfileManager({
         />
       )}
 
-      <h2>Profiles</h2>
+      <div className="profile-manager-header">
+        <h2>Profiles</h2>
+        <label className="show-rates-toggle">
+          <input
+            type="checkbox"
+            checked={showRates}
+            onChange={(e) => setShowRates(e.target.checked)}
+          />
+          <span>Show Hourly Rates</span>
+        </label>
+      </div>
 
       <div className="profiles-list">
         {profiles.map((profile) => (
@@ -217,7 +237,7 @@ export default function ProfileManager({
               >
                 <div className="profile-info">
                   <strong>{profile.name}</strong>
-                  <span className="rate">${profile.hourly_rate}/hr</span>
+                  {showRates && <span className="rate">${profile.hourly_rate}/hr</span>}
                 </div>
                 <div className="profile-actions">
                   <button 

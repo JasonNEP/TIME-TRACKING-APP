@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import type { Profile, TimeEntry } from '../types/database'
 import PinVerifyModal from './PinVerifyModal'
@@ -31,6 +31,20 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
     notes: ''
   })
   const [loading, setLoading] = useState(false)
+  const [showRates, setShowRates] = useState(() => {
+    const saved = localStorage.getItem('showHourlyRates')
+    return saved ? JSON.parse(saved) : false
+  })
+
+  useEffect(() => {
+    const handleVisibilityChange = (e: CustomEvent) => {
+      setShowRates(e.detail)
+    }
+    window.addEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
+    return () => {
+      window.removeEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
+    }
+  }, [])
   const getProfileName = (profileId: string) => {
     const profile = profiles.find(p => p.id === profileId)
     return profile?.name || 'Unknown'
@@ -233,7 +247,7 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
                 <option value="">Select a profile</option>
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
-                    {profile.name} (${profile.hourly_rate}/hr)
+                    {profile.name}{showRates ? ` ($${profile.hourly_rate}/hr)` : ''}
                   </option>
                 ))}
               </select>
