@@ -90,20 +90,31 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
     return `$${earnings.toFixed(2)}`
   }
 
+  // Convert UTC timestamp to local datetime-local format
+  const toLocalDateTimeString = (isoString: string) => {
+    const date = new Date(isoString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   const handleEdit = (entry: TimeEntry) => {
     if (pinRequired) {
       setPendingAction({ type: 'edit', entryId: entry.id })
       setEditForm({
-        clock_in: entry.clock_in.slice(0, 16),
-        clock_out: entry.clock_out ? entry.clock_out.slice(0, 16) : '',
+        clock_in: toLocalDateTimeString(entry.clock_in),
+        clock_out: entry.clock_out ? toLocalDateTimeString(entry.clock_out) : '',
         notes: entry.notes || ''
       })
       setShowPinVerify(true)
     } else {
       setEditingId(entry.id)
       setEditForm({
-        clock_in: entry.clock_in.slice(0, 16),
-        clock_out: entry.clock_out ? entry.clock_out.slice(0, 16) : '',
+        clock_in: toLocalDateTimeString(entry.clock_in),
+        clock_out: entry.clock_out ? toLocalDateTimeString(entry.clock_out) : '',
         notes: entry.notes || ''
       })
     }
