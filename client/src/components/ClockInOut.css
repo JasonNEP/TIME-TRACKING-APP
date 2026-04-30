@@ -25,6 +25,15 @@
   font-weight: bold;
 }
 
+.clock-warning {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #f0c36d;
+  border-radius: 5px;
+  background: #fff6df;
+  color: #8a5a00;
+}
+
 .timer {
   text-align: center;
   margin: 2rem 0;

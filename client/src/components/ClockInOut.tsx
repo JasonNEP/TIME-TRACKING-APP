@@ -12,6 +12,7 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [openEntryCount, setOpenEntryCount] = useState(0)
   const [showRates, setShowRates] = useState(() => {
     const saved = localStorage.getItem('showHourlyRates')
     return saved ? JSON.parse(saved) : false
@@ -32,20 +33,33 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
   }, [activeProfile])
 
   const checkActiveEntry = async () => {
-    if (!activeProfile) return
+    if (!activeProfile) {
+      setActiveEntry(null)
+      setOpenEntryCount(0)
+      return
+    }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('time_entries')
       .select('*')
       .eq('user_id', user.id)
       .eq('profile_id', activeProfile.id)
       .is('clock_out', null)
-      .single()
+      .order('clock_in', { ascending: false })
 
-    setActiveEntry(data)
+    if (error) {
+      console.error('Error checking active entry:', error)
+      setActiveEntry(null)
+      setOpenEntryCount(0)
+      return
+    }
+
+    const openEntries = data || []
+    setOpenEntryCount(openEntries.length)
+    setActiveEntry(openEntries[0] || null)
   }
 
   const handleClockIn = async () => {
@@ -56,7 +70,33 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
 
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    const { data: existingEntries, error: existingEntriesError } = await supabase
+      .from('time_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('profile_id', activeProfile.id)
+      .is('clock_out', null)
+      .order('clock_in', { ascending: false })
+
+    if (existingEntriesError) {
+      console.error('Error checking existing entries:', existingEntriesError)
+      alert('Failed to verify current clock-in status')
+      setLoading(false)
+      return
+    }
+
+    if (existingEntries && existingEntries.length > 0) {
+      setOpenEntryCount(existingEntries.length)
+      setActiveEntry(existingEntries[0])
+      alert('This profile is already clocked in. Please clock it out before starting another entry.')
+      setLoading(false)
+      return
+    }
 
     const { error } = await supabase
       .from('time_entries')
@@ -72,7 +112,7 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
       alert('Failed to clock in')
     } else {
       setNotes('')
-      checkActiveEntry()
+      await checkActiveEntry()
       onUpdate()
     }
     setLoading(false)
@@ -95,7 +135,7 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
       alert('Failed to clock out')
     } else {
       setNotes('')
-      setActiveEntry(null)
+      await checkActiveEntry()
       onUpdate()
     }
     setLoading(false)
@@ -136,6 +176,12 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
             <strong>Active Profile:</strong> {activeProfile.name}
             {showRates && <span className="rate">${activeProfile.hourly_rate}/hr</span>}
           </div>
+
+          {openEntryCount > 1 && (
+            <div className="clock-warning">
+              This profile has {openEntryCount} open time entries. Clocking out will close the most recent one first.
+            </div>
+          )}
 
           {activeEntry && (
             <div className="timer">
