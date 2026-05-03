@@ -271,7 +271,7 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
                     onClick={handlePause}
                     disabled={loading}
                   >
-                    {loading ? '...' : 'â¸ Pause'}
+                    {loading ? '...' : 'Pause'}
                   </button>
                 ) : (
                   <button
