@@ -86,7 +86,7 @@ export default function Dashboard() {
 
     const { data, error } = await supabase
       .from('time_entries')
-      .select('*')
+      .select('*, time_entry_segments(*)')
       .eq('user_id', user.id)
       .eq('profile_id', activeProfile.id)
       .order('clock_in', { ascending: false })

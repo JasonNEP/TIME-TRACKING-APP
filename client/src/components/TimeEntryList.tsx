@@ -65,29 +65,40 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
     })
   }
 
-  const calculateDuration = (clockIn: string, clockOut: string | null) => {
-    if (!clockOut) return 'In progress'
-    
-    const start = new Date(clockIn).getTime()
-    const end = new Date(clockOut).getTime()
-    const diff = end - start
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    
-    return `${hours}h ${minutes}m`
+  const calcWorkedMs = (entry: TimeEntry): number => {
+    const segs = entry.time_entry_segments
+    if (segs && segs.length > 0) {
+      return segs.reduce((total, seg) => {
+        const start = new Date(seg.start_time).getTime()
+        const end = seg.end_time ? new Date(seg.end_time).getTime() : Date.now()
+        return total + Math.max(0, end - start)
+      }, 0)
+    }
+    // Fallback for entries without segments
+    if (!entry.clock_out) return 0
+    return Math.max(0, new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime())
   }
 
-  const calculateEarnings = (entry: TimeEntry) => {
-    if (!entry.clock_out) return '$0.00'
-    
-    const start = new Date(entry.clock_in).getTime()
-    const end = new Date(entry.clock_out).getTime()
-    const hours = (end - start) / (1000 * 60 * 60)
+  const calculateDuration = (entry: TimeEntry): string => {
+    if (entry.status === 'active') return 'Active ▶'
+    if (entry.status === 'paused') {
+      const ms = calcWorkedMs(entry)
+      const h = Math.floor(ms / 3600000)
+      const m = Math.floor((ms % 3600000) / 60000)
+      return `${h}h ${m}m (Paused)`
+    }
+    const ms = calcWorkedMs(entry)
+    const h = Math.floor(ms / 3600000)
+    const m = Math.floor((ms % 3600000) / 60000)
+    return `${h}h ${m}m`
+  }
+
+  const calculateEarnings = (entry: TimeEntry): string => {
+    if (entry.status !== 'completed') return '$0.00'
+    const ms = calcWorkedMs(entry)
+    const hours = ms / 3600000
     const rate = getProfileRate(entry.profile_id)
-    const earnings = hours * rate
-    
-    return `$${earnings.toFixed(2)}`
+    return `$${(hours * rate).toFixed(2)}`
   }
 
   // Convert UTC timestamp to local datetime-local format
@@ -171,10 +182,29 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
           profile_id: manualEntryForm.profile_id,
           clock_in: new Date(manualEntryForm.clock_in).toISOString(),
           clock_out: new Date(manualEntryForm.clock_out).toISOString(),
+          status: 'completed',
           notes: manualEntryForm.notes || null
         } as any)
 
       if (error) throw error
+
+      // Also create the matching segment
+      const { data: newEntries } = await supabase
+        .from('time_entries')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('profile_id', manualEntryForm.profile_id)
+        .eq('clock_in', new Date(manualEntryForm.clock_in).toISOString())
+        .single()
+
+      if (newEntries) {
+        await supabase.from('time_entry_segments').insert({
+          time_entry_id: (newEntries as any).id,
+          user_id: user.id,
+          start_time: new Date(manualEntryForm.clock_in).toISOString(),
+          end_time: new Date(manualEntryForm.clock_out).toISOString(),
+        } as any)
+      }
 
       setManualEntryForm({ profile_id: '', clock_in: '', clock_out: '', notes: '' })
       setShowManualEntry(false)
@@ -318,7 +348,7 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
       ) : (
         <div className="entries">
           {timeEntries.map((entry) => (
-            <div key={entry.id} className={`entry-item ${!entry.clock_out ? 'active' : ''}`}>
+            <div key={entry.id} className={`entry-item ${entry.status !== 'completed' ? 'active' : ''}`}>
               {editingId === entry.id ? (
                 <div className="edit-form">
                   <div className="form-group">
@@ -373,7 +403,7 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
                   </div>
                   
                   <div className="entry-duration">
-                    {calculateDuration(entry.clock_in, entry.clock_out)}
+                    {calculateDuration(entry)}
                   </div>
                   
                   {entry.notes && (
@@ -382,7 +412,7 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
                     </div>
                   )}
 
-                  {isAdmin && entry.clock_out && (
+                  {isAdmin && entry.status === 'completed' && (
                     <div className="entry-actions">
                       <button onClick={() => handleEdit(entry)} className="edit-btn">
                         Edit

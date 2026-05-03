@@ -78,7 +78,7 @@ export default function Reports() {
       // Fetch time entries in date range
       const { data: entries, error: entriesError } = await supabase
         .from('time_entries')
-        .select('*')
+        .select('*, time_entry_segments(*)')
         .eq('user_id', user.id)
         .gte('clock_in', new Date(startDate).toISOString())
         .lte('clock_in', new Date(endDate + 'T23:59:59').toISOString())
@@ -120,7 +120,11 @@ export default function Reports() {
         // Add to filtered entries
         filteredEntries.push(entry)
 
-        const hours = (new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime()) / (1000 * 60 * 60)
+        const segs = (entry as any).time_entry_segments
+        const workedMs = segs?.length > 0
+          ? segs.reduce((t: number, s: any) => t + Math.max(0, new Date(s.end_time || Date.now()).getTime() - new Date(s.start_time).getTime()), 0)
+          : (entry.clock_out ? new Date(entry.clock_out).getTime() - new Date(entry.clock_in).getTime() : 0)
+        const hours = workedMs / 3600000
         const earnings = hours * profile.hourly_rate
 
         totalHours += hours
@@ -267,7 +271,11 @@ export default function Reports() {
         const tableData = entries.map(entry => {
           const clockIn = new Date(entry.clock_in)
           const clockOut = entry.clock_out ? new Date(entry.clock_out) : null
-          const hours = clockOut ? (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60) : 0
+          const segs = (entry as any).time_entry_segments
+          const workedMs = segs?.length > 0
+            ? segs.reduce((t: number, s: any) => t + Math.max(0, new Date(s.end_time || Date.now()).getTime() - new Date(s.start_time).getTime()), 0)
+            : (clockOut ? clockOut.getTime() - clockIn.getTime() : 0)
+          const hours = workedMs / 3600000
           const earnings = hours * profile.hourly_rate
           
           return [
@@ -449,7 +457,11 @@ export default function Reports() {
                       {profileEntries.map(entry => {
                         const clockIn = new Date(entry.clock_in)
                         const clockOut = entry.clock_out ? new Date(entry.clock_out) : null
-                        const hours = clockOut ? (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60) : 0
+                        const segs = (entry as any).time_entry_segments
+                        const workedMs = segs?.length > 0
+                          ? segs.reduce((t: number, s: any) => t + Math.max(0, new Date(s.end_time || Date.now()).getTime() - new Date(s.start_time).getTime()), 0)
+                          : (clockOut ? clockOut.getTime() - clockIn.getTime() : 0)
+                        const hours = workedMs / 3600000
                         const earnings = hours * profile.hourly_rate
 
                         return (

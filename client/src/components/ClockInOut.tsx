@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import type { Profile, TimeEntry } from '../types/database'
+import type { Profile, TimeEntry, TimeEntrySegment } from '../types/database'
 import './ClockInOut.css'
 
 interface ClockInOutProps {
@@ -9,57 +9,93 @@ interface ClockInOutProps {
 }
 
 export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps) {
-  const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null)
+  const [entry, setEntry] = useState<TimeEntry | null>(null)
+  const [segments, setSegments] = useState<TimeEntrySegment[]>([])
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
-  const [openEntryCount, setOpenEntryCount] = useState(0)
+  const [tick, setTick] = useState(0)
   const [showRates, setShowRates] = useState(() => {
     const saved = localStorage.getItem('showHourlyRates')
     return saved ? JSON.parse(saved) : false
   })
 
   useEffect(() => {
-    const handleVisibilityChange = (e: CustomEvent) => {
-      setShowRates(e.detail)
-    }
+    const handleVisibilityChange = (e: CustomEvent) => setShowRates(e.detail)
     window.addEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
-    return () => {
-      window.removeEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
-    }
+    return () => window.removeEventListener('hourlyRatesVisibilityChanged', handleVisibilityChange as EventListener)
   }, [])
 
   useEffect(() => {
-    checkActiveEntry()
+    loadActiveEntry()
   }, [activeProfile])
 
-  const checkActiveEntry = async () => {
+  // Tick every second only while actively clocked in
+  useEffect(() => {
+    if (entry?.status !== 'active') return
+    const interval = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(interval)
+  }, [entry?.status])
+
+  const loadActiveEntry = async () => {
     if (!activeProfile) {
-      setActiveEntry(null)
-      setOpenEntryCount(0)
+      setEntry(null)
+      setSegments([])
       return
     }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data, error } = await supabase
+    const { data: entries, error } = await supabase
       .from('time_entries')
       .select('*')
       .eq('user_id', user.id)
       .eq('profile_id', activeProfile.id)
-      .is('clock_out', null)
+      .in('status', ['active', 'paused'])
       .order('clock_in', { ascending: false })
+      .limit(1)
 
     if (error) {
-      console.error('Error checking active entry:', error)
-      setActiveEntry(null)
-      setOpenEntryCount(0)
+      console.error('Error loading active entry:', error)
+      setEntry(null)
+      setSegments([])
       return
     }
 
-    const openEntries = data || []
-    setOpenEntryCount(openEntries.length)
-    setActiveEntry(openEntries[0] || null)
+    if (!entries || entries.length === 0) {
+      setEntry(null)
+      setSegments([])
+      return
+    }
+
+    const activeEntry = entries[0] as TimeEntry
+    setEntry(activeEntry)
+
+    const { data: segs } = await supabase
+      .from('time_entry_segments')
+      .select('*')
+      .eq('time_entry_id', activeEntry.id)
+      .order('start_time', { ascending: true })
+
+    setSegments((segs || []) as TimeEntrySegment[])
+  }
+
+  // Sum all segment durations; open segment counts toward elapsed only when active
+  const calculateElapsedMs = (): number => {
+    return segments.reduce((total, seg) => {
+      const start = new Date(seg.start_time).getTime()
+      const end = seg.end_time
+        ? new Date(seg.end_time).getTime()
+        : (entry?.status === 'active' ? Date.now() : start)
+      return total + Math.max(0, end - start)
+    }, 0)
+  }
+
+  const formatElapsed = (ms: number): string => {
+    const h = Math.floor(ms / 3600000)
+    const m = Math.floor((ms % 3600000) / 60000)
+    const s = Math.floor((ms % 60000) / 1000)
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
   const handleClockIn = async () => {
@@ -70,106 +106,136 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
 
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      return
-    }
+    if (!user) { setLoading(false); return }
 
-    const { data: existingEntries, error: existingEntriesError } = await supabase
-      .from('time_entries')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('profile_id', activeProfile.id)
-      .is('clock_out', null)
-      .order('clock_in', { ascending: false })
+    const now = new Date().toISOString()
 
-    if (existingEntriesError) {
-      console.error('Error checking existing entries:', existingEntriesError)
-      alert('Failed to verify current clock-in status')
-      setLoading(false)
-      return
-    }
-
-    if (existingEntries && existingEntries.length > 0) {
-      setOpenEntryCount(existingEntries.length)
-      setActiveEntry(existingEntries[0])
-      alert('This profile is already clocked in. Please clock it out before starting another entry.')
-      setLoading(false)
-      return
-    }
-
-    const { error } = await supabase
+    const { data: newEntry, error: entryError } = await supabase
       .from('time_entries')
       .insert({
         user_id: user.id,
         profile_id: activeProfile.id,
-        clock_in: new Date().toISOString(),
+        clock_in: now,
+        status: 'active',
         notes: notes || null,
       } as any)
+      .select()
+      .single()
 
-    if (error) {
-      console.error('Error clocking in:', error)
+    if (entryError || !newEntry) {
+      console.error('Error clocking in:', entryError)
       alert('Failed to clock in')
-    } else {
-      setNotes('')
-      await checkActiveEntry()
-      onUpdate()
+      setLoading(false)
+      return
     }
+
+    const { error: segError } = await supabase
+      .from('time_entry_segments')
+      .insert({
+        time_entry_id: newEntry.id,
+        user_id: user.id,
+        start_time: now,
+      } as any)
+
+    if (segError) {
+      console.error('Error creating segment:', segError)
+    }
+
+    setNotes('')
+    await loadActiveEntry()
+    onUpdate()
+    setLoading(false)
+  }
+
+  const handlePause = async () => {
+    if (!entry) return
+    setLoading(true)
+
+    const now = new Date().toISOString()
+
+    // Close the open segment
+    await supabase
+      .from('time_entry_segments')
+      .update({ end_time: now } as any)
+      .eq('time_entry_id', entry.id)
+      .is('end_time', null)
+
+    // Mark entry as paused
+    await supabase
+      .from('time_entries')
+      .update({ status: 'paused' } as any)
+      .eq('id', entry.id)
+
+    await loadActiveEntry()
+    onUpdate()
+    setLoading(false)
+  }
+
+  const handleResume = async () => {
+    if (!entry) return
+    setLoading(true)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
+
+    const now = new Date().toISOString()
+
+    // Create a new segment
+    await supabase
+      .from('time_entry_segments')
+      .insert({
+        time_entry_id: entry.id,
+        user_id: user.id,
+        start_time: now,
+      } as any)
+
+    // Mark entry as active
+    await supabase
+      .from('time_entries')
+      .update({ status: 'active' } as any)
+      .eq('id', entry.id)
+
+    await loadActiveEntry()
+    onUpdate()
     setLoading(false)
   }
 
   const handleClockOut = async () => {
-    if (!activeEntry) return
-
+    if (!entry) return
     setLoading(true)
-    const { error } = await supabase
-      .from('time_entries')
-      .update({ 
-        clock_out: new Date().toISOString(),
-        notes: notes || activeEntry.notes 
-      } as any)
-      .eq('id', activeEntry.id)
 
-    if (error) {
-      console.error('Error clocking out:', error)
-      alert('Failed to clock out')
-    } else {
-      setNotes('')
-      await checkActiveEntry()
-      onUpdate()
-    }
+    const now = new Date().toISOString()
+
+    // Close any open segment
+    await supabase
+      .from('time_entry_segments')
+      .update({ end_time: now } as any)
+      .eq('time_entry_id', entry.id)
+      .is('end_time', null)
+
+    // Complete the entry
+    await supabase
+      .from('time_entries')
+      .update({
+        clock_out: now,
+        status: 'completed',
+        notes: notes || entry.notes,
+      } as any)
+      .eq('id', entry.id)
+
+    setNotes('')
+    setEntry(null)
+    setSegments([])
+    onUpdate()
     setLoading(false)
   }
 
-  const getElapsedTime = () => {
-    if (!activeEntry) return '00:00:00'
-    
-    const start = new Date(activeEntry.clock_in).getTime()
-    const now = Date.now()
-    const diff = now - start
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-    
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-  }
-
-  useEffect(() => {
-    if (!activeEntry) return
-    
-    const interval = setInterval(() => {
-      // Force re-render every second
-      setActiveEntry({ ...activeEntry })
-    }, 1000)
-    
-    return () => clearInterval(interval)
-  }, [activeEntry])
+  const elapsedMs = calculateElapsedMs()
 
   return (
     <div className="clock-card">
       <h2>Time Clock</h2>
-      
+
       {activeProfile ? (
         <>
           <div className="active-profile">
@@ -177,42 +243,70 @@ export default function ClockInOut({ activeProfile, onUpdate }: ClockInOutProps)
             {showRates && <span className="rate">${activeProfile.hourly_rate}/hr</span>}
           </div>
 
-          {openEntryCount > 1 && (
-            <div className="clock-warning">
-              This profile has {openEntryCount} open time entries. Clocking out will close the most recent one first.
-            </div>
-          )}
+          {entry ? (
+            <>
+              <div className="timer">
+                <div className="elapsed-time">{formatElapsed(elapsedMs)}</div>
+                <div className={`status ${entry.status === 'paused' ? 'status-paused' : ''}`}>
+                  {entry.status === 'active' ? 'Clocked In' : 'Paused'}
+                </div>
+                {segments.length > 1 && (
+                  <div className="segment-count">
+                    {segments.length} work segments
+                  </div>
+                )}
+              </div>
 
-          {activeEntry && (
-            <div className="timer">
-              <div className="elapsed-time">{getElapsedTime()}</div>
-              <div className="status">Clocked In</div>
-            </div>
-          )}
+              <textarea
+                placeholder="Add notes (optional)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+              />
 
-          <textarea
-            placeholder="Add notes (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-          />
-
-          {!activeEntry ? (
-            <button 
-              className="clock-btn clock-in-btn" 
-              onClick={handleClockIn}
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : 'Clock In'}
-            </button>
+              <div className="clock-btn-row">
+                {entry.status === 'active' ? (
+                  <button
+                    className="clock-btn pause-btn"
+                    onClick={handlePause}
+                    disabled={loading}
+                  >
+                    {loading ? '...' : 'â¸ Pause'}
+                  </button>
+                ) : (
+                  <button
+                    className="clock-btn resume-btn"
+                    onClick={handleResume}
+                    disabled={loading}
+                  >
+                    {loading ? '...' : 'â–¶ Resume'}
+                  </button>
+                )}
+                <button
+                  className="clock-btn clock-out-btn"
+                  onClick={handleClockOut}
+                  disabled={loading}
+                >
+                  {loading ? 'Processing...' : 'Clock Out'}
+                </button>
+              </div>
+            </>
           ) : (
-            <button 
-              className="clock-btn clock-out-btn" 
-              onClick={handleClockOut}
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : 'Clock Out'}
-            </button>
+            <>
+              <textarea
+                placeholder="Add notes (optional)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+              />
+              <button
+                className="clock-btn clock-in-btn"
+                onClick={handleClockIn}
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : 'Clock In'}
+              </button>
+            </>
           )}
         </>
       ) : (
