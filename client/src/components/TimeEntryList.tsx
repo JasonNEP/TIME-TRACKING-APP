@@ -218,11 +218,14 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
   }
 
   const handleSaveEdit = async (entryId: string) => {
+    const newClockIn = new Date(editForm.clock_in).toISOString()
+    const newClockOut = editForm.clock_out ? new Date(editForm.clock_out).toISOString() : null
+
     const { error } = await supabase
       .from('time_entries')
       .update({
-        clock_in: new Date(editForm.clock_in).toISOString(),
-        clock_out: editForm.clock_out ? new Date(editForm.clock_out).toISOString() : null,
+        clock_in: newClockIn,
+        clock_out: newClockOut,
         notes: editForm.notes || null,
         updated_at: new Date().toISOString()
       } as any)
@@ -231,10 +234,19 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
     if (error) {
       console.error('Error updating entry:', error)
       alert('Failed to update entry')
-    } else {
-      setEditingId(null)
-      onUpdate()
+      return
     }
+
+    // Update segments so pay calculation stays in sync
+    if (newClockOut) {
+      await supabase
+        .from('time_entry_segments')
+        .update({ start_time: newClockIn, end_time: newClockOut } as any)
+        .eq('time_entry_id', entryId)
+    }
+
+    setEditingId(null)
+    onUpdate()
   }
 
   const confirmDelete = async (entryId: string) => {

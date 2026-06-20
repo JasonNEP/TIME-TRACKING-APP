@@ -1,5 +1,7 @@
 export interface Database {
   public: {
+    Views: Record<string, never>
+    Functions: Record<string, never>
     Tables: {
       profiles: {
         Row: {
@@ -26,6 +28,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: never[]
       }
       time_entries: {
         Row: {
@@ -35,6 +38,7 @@ export interface Database {
           clock_in: string
           clock_out: string | null
           notes: string | null
+          status: 'active' | 'paused' | 'completed'
           created_at: string
           updated_at: string
         }
@@ -45,6 +49,7 @@ export interface Database {
           clock_in?: string
           clock_out?: string | null
           notes?: string | null
+          status?: 'active' | 'paused' | 'completed'
           created_at?: string
           updated_at?: string
         }
@@ -55,15 +60,46 @@ export interface Database {
           clock_in?: string
           clock_out?: string | null
           notes?: string | null
+          status?: 'active' | 'paused' | 'completed'
           created_at?: string
           updated_at?: string
         }
+        Relationships: never[]
+      }
+      time_entry_segments: {
+        Row: {
+          id: string
+          time_entry_id: string
+          user_id: string
+          start_time: string
+          end_time: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          time_entry_id: string
+          user_id: string
+          start_time: string
+          end_time?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          time_entry_id?: string
+          user_id?: string
+          start_time?: string
+          end_time?: string | null
+          created_at?: string
+        }
+        Relationships: never[]
       }
       user_roles: {
         Row: {
           id: string
           user_id: string
           role: 'admin' | 'user'
+          pin_hash: string | null
+          require_pin: boolean
           created_at: string
           updated_at: string
         }
@@ -71,6 +107,8 @@ export interface Database {
           id?: string
           user_id: string
           role: 'admin' | 'user'
+          pin_hash?: string | null
+          require_pin?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -78,9 +116,12 @@ export interface Database {
           id?: string
           user_id?: string
           role?: 'admin' | 'user'
+          pin_hash?: string | null
+          require_pin?: boolean
           created_at?: string
           updated_at?: string
         }
+        Relationships: never[]
       }
     }
   }
