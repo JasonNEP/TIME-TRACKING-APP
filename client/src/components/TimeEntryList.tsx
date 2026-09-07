@@ -12,7 +12,7 @@ interface TimeEntryListProps {
   profiles: Profile[]
   isAdmin: boolean
   onUpdate: () => void
-  onApplyFilters: () => void
+  onRefresh: () => void
   activeProfile: Profile | null
   entryViewMode: EntryViewMode
   onEntryViewModeChange: (mode: EntryViewMode) => void
@@ -30,7 +30,7 @@ export default function TimeEntryList({
   profiles,
   isAdmin,
   onUpdate,
-  onApplyFilters,
+  onRefresh,
   activeProfile,
   entryViewMode,
   onEntryViewModeChange,
@@ -129,7 +129,47 @@ export default function TimeEntryList({
     return `$${(hours * rate).toFixed(2)}`
   }
 
-  const totals = timeEntries.reduce(
+  const getStartOfDayIso = (dateStr: string) => new Date(`${dateStr}T00:00:00`).toISOString()
+  const getEndOfDayIso = (dateStr: string) => new Date(`${dateStr}T23:59:59`).toISOString()
+
+  const getCurrentWeekRange = () => {
+    const now = new Date()
+    const day = now.getDay()
+
+    const start = new Date(now)
+    start.setHours(0, 0, 0, 0)
+    start.setDate(now.getDate() - day)
+
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    end.setHours(23, 59, 59, 999)
+
+    return { start, end }
+  }
+
+  const filteredEntries = timeEntries.filter((entry) => {
+    if (entryViewMode === 'recent') return true
+
+    const clockInMs = new Date(entry.clock_in).getTime()
+
+    if (entryViewMode === 'week') {
+      const { start, end } = getCurrentWeekRange()
+      return clockInMs >= start.getTime() && clockInMs <= end.getTime()
+    }
+
+    if (entryViewMode === 'range') {
+      if (startDate && clockInMs < new Date(getStartOfDayIso(startDate)).getTime()) return false
+      if (endDate && clockInMs > new Date(getEndOfDayIso(endDate)).getTime()) return false
+      return true
+    }
+
+    return true
+  })
+
+  const displayedEntries =
+    entryViewMode === 'recent' ? filteredEntries.slice(0, entryLimit) : filteredEntries
+
+  const totals = displayedEntries.reduce(
     (acc, entry) => {
       if (entry.status !== 'completed') return acc
       const hours = calcWorkedMs(entry) / 3600000
@@ -141,7 +181,7 @@ export default function TimeEntryList({
     { hours: 0, pay: 0 }
   )
 
-  const handleApplyFilters = () => {
+  const handleRefresh = () => {
     if (
       entryViewMode === 'range' &&
       startDate &&
@@ -152,7 +192,7 @@ export default function TimeEntryList({
       return
     }
 
-    onApplyFilters()
+    onRefresh()
   }
 
   // Convert UTC timestamp to local datetime-local format
@@ -407,13 +447,13 @@ export default function TimeEntryList({
           </>
         )}
 
-        <button type="button" className="apply-filter-btn" onClick={handleApplyFilters}>
-          Apply / Refresh
+        <button type="button" className="apply-filter-btn" onClick={handleRefresh}>
+          Refresh
         </button>
         <button type="button" className="save-default-btn" onClick={onSaveViewAsDefault}>
           Save As Profile Default
         </button>
-        <span className="entries-limit-label">{timeEntries.length} loaded</span>
+        <span className="entries-limit-label">{displayedEntries.length} loaded</span>
       </div>
 
       <div className="entry-summary">
@@ -496,11 +536,11 @@ export default function TimeEntryList({
         </div>
       )}
       
-      {timeEntries.length === 0 ? (
+      {displayedEntries.length === 0 ? (
         <p className="no-entries">No time entries yet. Clock in to get started!</p>
       ) : (
         <div className="entries">
-          {timeEntries.map((entry) => (
+          {displayedEntries.map((entry) => (
             <div key={entry.id} className={`entry-item ${entry.status !== 'completed' ? 'active' : ''}`}>
               {editingId === entry.id ? (
                 <div className="edit-form">
