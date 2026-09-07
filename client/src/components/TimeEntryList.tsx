@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import type { Profile, TimeEntry } from '../types/database'
+import type { Profile, TimeEntry, TimeEntrySegment } from '../types/database'
 import PinVerifyModal from './PinVerifyModal'
 import { usePinRequired } from '../hooks/usePinRequired'
 import './TimeEntryList.css'
@@ -358,10 +358,40 @@ export default function TimeEntryList({
 
     // Update segments so pay calculation stays in sync
     if (newClockOut) {
-      await supabase
-        .from('time_entry_segments')
-        .update({ start_time: newClockIn, end_time: newClockOut } as any)
-        .eq('time_entry_id', entryId)
+      const entryToEdit = displayedEntries.find((e) => e.id === entryId)
+      const segments = [...(entryToEdit?.time_entry_segments || [])].sort(
+        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      )
+
+      if (segments.length === 0) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          await supabase.from('time_entry_segments').insert({
+            time_entry_id: entryId,
+            user_id: user.id,
+            start_time: newClockIn,
+            end_time: newClockOut,
+          } as any)
+        }
+      } else if (segments.length === 1) {
+        await supabase
+          .from('time_entry_segments')
+          .update({ start_time: newClockIn, end_time: newClockOut } as any)
+          .eq('id', segments[0].id)
+      } else {
+        const first = segments[0]
+        const last = segments[segments.length - 1]
+
+        await supabase
+          .from('time_entry_segments')
+          .update({ start_time: newClockIn } as any)
+          .eq('id', first.id)
+
+        await supabase
+          .from('time_entry_segments')
+          .update({ end_time: newClockOut } as any)
+          .eq('id', last.id)
+      }
     }
 
     setEditingId(null)
@@ -600,6 +630,26 @@ export default function TimeEntryList({
                       </div>
                     )}
                   </div>
+
+                  {(entry.time_entry_segments?.length || 0) > 1 && (
+                    <div className="entry-segments">
+                      <div className="segments-title">Work Segments</div>
+                      {(entry.time_entry_segments as TimeEntrySegment[])
+                        .slice()
+                        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+                        .map((segment, index) => (
+                          <div key={segment.id} className="segment-row">
+                            <span className="segment-index">#{index + 1}</span>
+                            <span>
+                              <span className="label">In:</span> {formatDateTime(segment.start_time)}
+                            </span>
+                            <span>
+                              <span className="label">Out:</span> {segment.end_time ? formatDateTime(segment.end_time) : 'Open'}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                   
                   <div className="entry-duration">
                     {calculateDuration(entry)}

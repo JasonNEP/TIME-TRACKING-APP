@@ -307,6 +307,37 @@
   font-size: 1rem;
 }
 
+.entry-segments {
+  margin-top: 0.6rem;
+  background: #fff;
+  border: 1px solid #e7e7e7;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+
+.segments-title {
+  font-size: 0.8rem;
+  color: #555;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.segment-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr 1fr;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #555;
+  padding: 0.2rem 0;
+}
+
+.segment-index {
+  color: #667eea;
+  font-weight: 700;
+}
+
 .entry-notes {
   margin-top: 0.75rem;
   padding: 0.75rem;
