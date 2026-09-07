@@ -305,7 +305,12 @@ export default function TimeEntryList({
             id="entries-limit"
             className="entries-limit-select"
             value={entryLimit}
-            onChange={(e) => onEntryLimitChange(Number(e.target.value))}
+            onChange={(e) => {
+              const nextLimit = Number(e.target.value)
+              if (nextLimit !== entryLimit) {
+                onEntryLimitChange(nextLimit)
+              }
+            }}
           >
             <option value={10}>10</option>
             <option value={25}>25</option>
@@ -313,7 +318,7 @@ export default function TimeEntryList({
             <option value={100}>100</option>
             <option value={250}>250</option>
           </select>
-          <span className="entries-limit-label">entries</span>
+          <span className="entries-limit-label">entries ({timeEntries.length} loaded)</span>
         </div>
         {isAdmin && (
           <button onClick={handleAddManualEntry} className="add-manual-btn-inline">
