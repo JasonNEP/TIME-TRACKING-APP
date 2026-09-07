@@ -11,9 +11,19 @@ interface TimeEntryListProps {
   isAdmin: boolean
   onUpdate: () => void
   activeProfile: Profile | null
+  entryLimit: number
+  onEntryLimitChange: (limit: number) => void
 }
 
-export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate, activeProfile }: TimeEntryListProps) {
+export default function TimeEntryList({
+  timeEntries,
+  profiles,
+  isAdmin,
+  onUpdate,
+  activeProfile,
+  entryLimit,
+  onEntryLimitChange,
+}: TimeEntryListProps) {
   const { pinRequired } = usePinRequired()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showPinVerify, setShowPinVerify] = useState(false)
@@ -170,6 +180,11 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
       return
     }
 
+    if (new Date(manualEntryForm.clock_out).getTime() < new Date(manualEntryForm.clock_in).getTime()) {
+      alert('Clock Out cannot be earlier than Clock In')
+      return
+    }
+
     setLoading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -220,6 +235,11 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
   const handleSaveEdit = async (entryId: string) => {
     const newClockIn = new Date(editForm.clock_in).toISOString()
     const newClockOut = editForm.clock_out ? new Date(editForm.clock_out).toISOString() : null
+
+    if (newClockOut && new Date(newClockOut).getTime() < new Date(newClockIn).getTime()) {
+      alert('Clock Out cannot be earlier than Clock In')
+      return
+    }
 
     const { error } = await supabase
       .from('time_entries')
@@ -279,6 +299,22 @@ export default function TimeEntryList({ timeEntries, profiles, isAdmin, onUpdate
 
       <div className="list-header">
         <h2>Recent Time Entries</h2>
+        <div className="list-controls">
+          <label htmlFor="entries-limit" className="entries-limit-label">Show</label>
+          <select
+            id="entries-limit"
+            className="entries-limit-select"
+            value={entryLimit}
+            onChange={(e) => onEntryLimitChange(Number(e.target.value))}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={250}>250</option>
+          </select>
+          <span className="entries-limit-label">entries</span>
+        </div>
         {isAdmin && (
           <button onClick={handleAddManualEntry} className="add-manual-btn-inline">
             + Add Manual Entry
