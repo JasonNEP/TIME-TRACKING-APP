@@ -5,14 +5,23 @@ import PinVerifyModal from './PinVerifyModal'
 import { usePinRequired } from '../hooks/usePinRequired'
 import './TimeEntryList.css'
 
+type EntryViewMode = 'recent' | 'week' | 'range'
+
 interface TimeEntryListProps {
   timeEntries: TimeEntry[]
   profiles: Profile[]
   isAdmin: boolean
   onUpdate: () => void
   activeProfile: Profile | null
+  entryViewMode: EntryViewMode
+  onEntryViewModeChange: (mode: EntryViewMode) => void
   entryLimit: number
   onEntryLimitChange: (limit: number) => void
+  startDate: string
+  endDate: string
+  onStartDateChange: (value: string) => void
+  onEndDateChange: (value: string) => void
+  onSaveViewAsDefault: () => void
 }
 
 export default function TimeEntryList({
@@ -21,8 +30,15 @@ export default function TimeEntryList({
   isAdmin,
   onUpdate,
   activeProfile,
+  entryViewMode,
+  onEntryViewModeChange,
   entryLimit,
   onEntryLimitChange,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  onSaveViewAsDefault,
 }: TimeEntryListProps) {
   const { pinRequired } = usePinRequired()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -110,6 +126,18 @@ export default function TimeEntryList({
     const rate = getProfileRate(entry.profile_id)
     return `$${(hours * rate).toFixed(2)}`
   }
+
+  const totals = timeEntries.reduce(
+    (acc, entry) => {
+      if (entry.status !== 'completed') return acc
+      const hours = calcWorkedMs(entry) / 3600000
+      const rate = getProfileRate(entry.profile_id)
+      acc.hours += hours
+      acc.pay += hours * rate
+      return acc
+    },
+    { hours: 0, pay: 0 }
+  )
 
   // Convert UTC timestamp to local datetime-local format
   const toLocalDateTimeString = (isoString: string) => {
@@ -300,31 +328,83 @@ export default function TimeEntryList({
       <div className="list-header">
         <h2>Recent Time Entries</h2>
         <div className="list-controls">
-          <label htmlFor="entries-limit" className="entries-limit-label">Show</label>
+          <label htmlFor="entries-view-mode" className="entries-limit-label">View</label>
           <select
-            id="entries-limit"
+            id="entries-view-mode"
             className="entries-limit-select"
-            value={entryLimit}
-            onChange={(e) => {
-              const nextLimit = Number(e.target.value)
-              if (nextLimit !== entryLimit) {
-                onEntryLimitChange(nextLimit)
-              }
-            }}
+            value={entryViewMode}
+            onChange={(e) => onEntryViewModeChange(e.target.value as EntryViewMode)}
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-            <option value={250}>250</option>
+            <option value="recent">Recent</option>
+            <option value="week">This Week (Sun-Sat)</option>
+            <option value="range">Date Range</option>
           </select>
-          <span className="entries-limit-label">entries ({timeEntries.length} loaded)</span>
+
+          {entryViewMode === 'recent' && (
+            <>
+              <label htmlFor="entries-limit" className="entries-limit-label">Show</label>
+              <select
+                id="entries-limit"
+                className="entries-limit-select"
+                value={entryLimit}
+                onChange={(e) => {
+                  const nextLimit = Number(e.target.value)
+                  if (nextLimit !== entryLimit) {
+                    onEntryLimitChange(nextLimit)
+                  }
+                }}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={250}>250</option>
+              </select>
+            </>
+          )}
+
+          {entryViewMode === 'range' && (
+            <>
+              <label htmlFor="start-date" className="entries-limit-label">From</label>
+              <input
+                id="start-date"
+                className="entries-date-input"
+                type="date"
+                value={startDate}
+                onChange={(e) => onStartDateChange(e.target.value)}
+              />
+              <label htmlFor="end-date" className="entries-limit-label">To</label>
+              <input
+                id="end-date"
+                className="entries-date-input"
+                type="date"
+                value={endDate}
+                onChange={(e) => onEndDateChange(e.target.value)}
+              />
+            </>
+          )}
+
+          <button type="button" className="save-default-btn" onClick={onSaveViewAsDefault}>
+            Save As Profile Default
+          </button>
+          <span className="entries-limit-label">{timeEntries.length} loaded</span>
         </div>
         {isAdmin && (
           <button onClick={handleAddManualEntry} className="add-manual-btn-inline">
             + Add Manual Entry
           </button>
         )}
+      </div>
+
+      <div className="entry-summary">
+        <div className="summary-item">
+          <span className="summary-label">Hours</span>
+          <strong>{totals.hours.toFixed(2)}</strong>
+        </div>
+        <div className="summary-item">
+          <span className="summary-label">Pay</span>
+          <strong>${totals.pay.toFixed(2)}</strong>
+        </div>
       </div>
 
       {showManualEntry && (
