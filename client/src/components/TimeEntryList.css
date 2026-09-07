@@ -19,6 +19,116 @@
   color: #333;
 }
 
+.list-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.entries-limit-label {
+  color: #555;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.entries-limit-select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.entries-date-input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.entries-date-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.entries-date-input:disabled {
+  background: #f3f3f3;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.save-default-btn {
+  padding: 0.45rem 0.8rem;
+  border: 1px solid #667eea;
+  border-radius: 6px;
+  background: #eef1ff;
+  color: #3f51b5;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.apply-filter-btn {
+  padding: 0.45rem 0.8rem;
+  border: 1px solid #4caf50;
+  border-radius: 6px;
+  background: #edf8ee;
+  color: #2d7d32;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.apply-filter-btn:hover {
+  background: #dcf0de;
+}
+
+.save-default-btn:hover {
+  background: #dde3ff;
+}
+
+.entry-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  background: #f8f9ff;
+  border: 1px solid #e1e6ff;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.summary-label {
+  color: #5a5a5a;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.entries-limit-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
 .add-manual-btn-inline {
   padding: 0.75rem 1.5rem;
   background: #667eea;
@@ -29,6 +139,18 @@
   cursor: pointer;
   transition: background 0.3s;
   white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .list-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .entry-summary {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
 
 .add-manual-btn-inline:hover {

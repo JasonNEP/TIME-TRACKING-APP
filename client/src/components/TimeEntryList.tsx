@@ -7,22 +7,25 @@ import './TimeEntryList.css'
 
 type EntryViewMode = 'recent' | 'week' | 'range'
 
+interface EntryFilters {
+  mode: EntryViewMode
+  entryLimit: number
+  startDate: string
+  endDate: string
+}
+
 interface TimeEntryListProps {
   timeEntries: TimeEntry[]
   profiles: Profile[]
   isAdmin: boolean
   onUpdate: () => void
-  onRefresh: () => void
+  onRefresh: (filters: EntryFilters) => void
   activeProfile: Profile | null
   entryViewMode: EntryViewMode
-  onEntryViewModeChange: (mode: EntryViewMode) => void
   entryLimit: number
-  onEntryLimitChange: (limit: number) => void
   startDate: string
   endDate: string
-  onStartDateChange: (value: string) => void
-  onEndDateChange: (value: string) => void
-  onSaveViewAsDefault: () => void
+  onSaveViewAsDefault: (mode: EntryViewMode, entryLimit: number) => void
 }
 
 export default function TimeEntryList({
@@ -33,13 +36,9 @@ export default function TimeEntryList({
   onRefresh,
   activeProfile,
   entryViewMode,
-  onEntryViewModeChange,
   entryLimit,
-  onEntryLimitChange,
   startDate,
   endDate,
-  onStartDateChange,
-  onEndDateChange,
   onSaveViewAsDefault,
 }: TimeEntryListProps) {
   const { pinRequired } = usePinRequired()
@@ -59,10 +58,21 @@ export default function TimeEntryList({
     notes: ''
   })
   const [loading, setLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<EntryViewMode>(entryViewMode)
+  const [limit, setLimit] = useState(entryLimit)
+  const [fromDate, setFromDate] = useState(startDate)
+  const [toDate, setToDate] = useState(endDate)
   const [showRates, setShowRates] = useState(() => {
     const saved = localStorage.getItem('showHourlyRates')
     return saved ? JSON.parse(saved) : false
   })
+
+  useEffect(() => {
+    setViewMode(entryViewMode)
+    setLimit(entryLimit)
+    setFromDate(startDate)
+    setToDate(endDate)
+  }, [entryViewMode, entryLimit, startDate, endDate, activeProfile?.id])
 
   useEffect(() => {
     const handleVisibilityChange = (e: CustomEvent) => {
@@ -148,18 +158,18 @@ export default function TimeEntryList({
   }
 
   const filteredEntries = timeEntries.filter((entry) => {
-    if (entryViewMode === 'recent') return true
+    if (viewMode === 'recent') return true
 
     const clockInMs = new Date(entry.clock_in).getTime()
 
-    if (entryViewMode === 'week') {
+    if (viewMode === 'week') {
       const { start, end } = getCurrentWeekRange()
       return clockInMs >= start.getTime() && clockInMs <= end.getTime()
     }
 
-    if (entryViewMode === 'range') {
-      if (startDate && clockInMs < new Date(getStartOfDayIso(startDate)).getTime()) return false
-      if (endDate && clockInMs > new Date(getEndOfDayIso(endDate)).getTime()) return false
+    if (viewMode === 'range') {
+      if (fromDate && clockInMs < new Date(getStartOfDayIso(fromDate)).getTime()) return false
+      if (toDate && clockInMs > new Date(getEndOfDayIso(toDate)).getTime()) return false
       return true
     }
 
@@ -167,7 +177,7 @@ export default function TimeEntryList({
   })
 
   const displayedEntries =
-    entryViewMode === 'recent' ? filteredEntries.slice(0, entryLimit) : filteredEntries
+    viewMode === 'recent' ? filteredEntries.slice(0, limit) : filteredEntries
 
   const totals = displayedEntries.reduce(
     (acc, entry) => {
@@ -183,16 +193,21 @@ export default function TimeEntryList({
 
   const handleRefresh = () => {
     if (
-      entryViewMode === 'range' &&
-      startDate &&
-      endDate &&
-      new Date(endDate).getTime() < new Date(startDate).getTime()
+      viewMode === 'range' &&
+      fromDate &&
+      toDate &&
+      new Date(toDate).getTime() < new Date(fromDate).getTime()
     ) {
       alert('End date cannot be before start date')
       return
     }
 
-    onRefresh()
+    onRefresh({
+      mode: viewMode,
+      entryLimit: limit,
+      startDate: fromDate,
+      endDate: toDate,
+    })
   }
 
   // Convert UTC timestamp to local datetime-local format
@@ -395,62 +410,53 @@ export default function TimeEntryList({
         <select
           id="entries-view-mode"
           className="entries-limit-select"
-          value={entryViewMode}
-          onChange={(e) => onEntryViewModeChange(e.target.value as EntryViewMode)}
+          value={viewMode}
+          onChange={(e) => setViewMode(e.target.value as EntryViewMode)}
         >
           <option value="recent">Recent</option>
           <option value="week">This Week (Sun-Sat)</option>
           <option value="range">Date Range</option>
         </select>
 
-        {entryViewMode === 'recent' && (
-          <>
-            <label htmlFor="entries-limit" className="entries-limit-label">Show</label>
-            <select
-              id="entries-limit"
-              className="entries-limit-select"
-              value={entryLimit}
-              onChange={(e) => {
-                const nextLimit = Number(e.target.value)
-                if (nextLimit !== entryLimit) {
-                  onEntryLimitChange(nextLimit)
-                }
-              }}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={250}>250</option>
-            </select>
-          </>
-        )}
+        <label htmlFor="entries-limit" className="entries-limit-label">Show</label>
+        <select
+          id="entries-limit"
+          className="entries-limit-select"
+          value={limit}
+          onChange={(e) => setLimit(Number(e.target.value))}
+        >
+          <option value={10}>10</option>
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+          <option value={250}>250</option>
+          <option value={500}>500</option>
+          <option value={1000}>1000</option>
+        </select>
 
-        {entryViewMode === 'range' && (
-          <>
-            <label htmlFor="start-date" className="entries-limit-label">From</label>
-            <input
-              id="start-date"
-              className="entries-date-input"
-              type="date"
-              value={startDate}
-              onChange={(e) => onStartDateChange(e.target.value)}
-            />
-            <label htmlFor="end-date" className="entries-limit-label">To</label>
-            <input
-              id="end-date"
-              className="entries-date-input"
-              type="date"
-              value={endDate}
-              onChange={(e) => onEndDateChange(e.target.value)}
-            />
-          </>
-        )}
+        <label htmlFor="start-date" className="entries-limit-label">From</label>
+        <input
+          id="start-date"
+          className="entries-date-input"
+          type="date"
+          value={fromDate}
+          onChange={(e) => setFromDate(e.target.value)}
+          disabled={viewMode !== 'range'}
+        />
+        <label htmlFor="end-date" className="entries-limit-label">To</label>
+        <input
+          id="end-date"
+          className="entries-date-input"
+          type="date"
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+          disabled={viewMode !== 'range'}
+        />
 
         <button type="button" className="apply-filter-btn" onClick={handleRefresh}>
           Refresh
         </button>
-        <button type="button" className="save-default-btn" onClick={onSaveViewAsDefault}>
+        <button type="button" className="save-default-btn" onClick={() => onSaveViewAsDefault(viewMode, limit)}>
           Save As Profile Default
         </button>
         <span className="entries-limit-label">{displayedEntries.length} loaded</span>
