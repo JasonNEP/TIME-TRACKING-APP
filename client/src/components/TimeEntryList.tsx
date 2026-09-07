@@ -14,6 +14,12 @@ interface EntryFilters {
   endDate: string
 }
 
+interface EditableSegment {
+  id?: string
+  start_time: string
+  end_time: string
+}
+
 interface TimeEntryListProps {
   timeEntries: TimeEntry[]
   profiles: Profile[]
@@ -50,6 +56,7 @@ export default function TimeEntryList({
     clock_out: string
     notes: string
   }>({ clock_in: '', clock_out: '', notes: '' })
+  const [editSegments, setEditSegments] = useState<EditableSegment[]>([])
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [manualEntryForm, setManualEntryForm] = useState({
     profile_id: '',
@@ -222,6 +229,22 @@ export default function TimeEntryList({
   }
 
   const handleEdit = (entry: TimeEntry) => {
+    const sortedSegments = [...(entry.time_entry_segments || [])].sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    )
+
+    const segmentsForEdit: EditableSegment[] =
+      sortedSegments.length > 0
+        ? sortedSegments.map((segment) => ({
+            id: segment.id,
+            start_time: toLocalDateTimeString(segment.start_time),
+            end_time: segment.end_time ? toLocalDateTimeString(segment.end_time) : '',
+          }))
+        : [{
+            start_time: toLocalDateTimeString(entry.clock_in),
+            end_time: entry.clock_out ? toLocalDateTimeString(entry.clock_out) : '',
+          }]
+
     if (pinRequired) {
       setPendingAction({ type: 'edit', entryId: entry.id })
       setEditForm({
@@ -229,6 +252,7 @@ export default function TimeEntryList({
         clock_out: entry.clock_out ? toLocalDateTimeString(entry.clock_out) : '',
         notes: entry.notes || ''
       })
+      setEditSegments(segmentsForEdit)
       setShowPinVerify(true)
     } else {
       setEditingId(entry.id)
@@ -237,6 +261,7 @@ export default function TimeEntryList({
         clock_out: entry.clock_out ? toLocalDateTimeString(entry.clock_out) : '',
         notes: entry.notes || ''
       })
+      setEditSegments(segmentsForEdit)
     }
   }
 
@@ -332,8 +357,36 @@ export default function TimeEntryList({
   }
 
   const handleSaveEdit = async (entryId: string) => {
-    const newClockIn = new Date(editForm.clock_in).toISOString()
-    const newClockOut = editForm.clock_out ? new Date(editForm.clock_out).toISOString() : null
+    if (editSegments.length === 0) {
+      alert('At least one segment is required')
+      return
+    }
+
+    for (let i = 0; i < editSegments.length; i++) {
+      const segment = editSegments[i]
+      if (!segment.start_time || !segment.end_time) {
+        alert(`Segment #${i + 1} needs both In and Out times`)
+        return
+      }
+      if (new Date(segment.end_time).getTime() < new Date(segment.start_time).getTime()) {
+        alert(`Segment #${i + 1} has Out earlier than In`)
+        return
+      }
+      if (i > 0) {
+        const prev = editSegments[i - 1]
+        if (new Date(segment.start_time).getTime() < new Date(prev.end_time).getTime()) {
+          alert(`Segment #${i + 1} starts before segment #${i} ends`)
+          return
+        }
+      }
+    }
+
+    const sortedSegments = [...editSegments].sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    )
+
+    const newClockIn = new Date(sortedSegments[0].start_time).toISOString()
+    const newClockOut = new Date(sortedSegments[sortedSegments.length - 1].end_time).toISOString()
 
     if (newClockOut && new Date(newClockOut).getTime() < new Date(newClockIn).getTime()) {
       alert('Clock Out cannot be earlier than Clock In')
@@ -356,45 +409,44 @@ export default function TimeEntryList({
       return
     }
 
-    // Update segments so pay calculation stays in sync
-    if (newClockOut) {
-      const entryToEdit = displayedEntries.find((e) => e.id === entryId)
-      const segments = [...(entryToEdit?.time_entry_segments || [])].sort(
-        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-      )
+    // Persist each segment explicitly so paused break structure is preserved.
+    const { data: { user } } = await supabase.auth.getUser()
 
-      if (segments.length === 0) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          await supabase.from('time_entry_segments').insert({
+    for (const segment of sortedSegments) {
+      const startIso = new Date(segment.start_time).toISOString()
+      const endIso = segment.end_time ? new Date(segment.end_time).toISOString() : null
+
+      if (segment.id) {
+        const { error: segmentUpdateError } = await supabase
+          .from('time_entry_segments')
+          .update({ start_time: startIso, end_time: endIso } as any)
+          .eq('id', segment.id)
+
+        if (segmentUpdateError) {
+          console.error('Error updating segment:', segmentUpdateError)
+          alert('Failed to update one of the work segments')
+          return
+        }
+      } else if (user) {
+        const { error: segmentInsertError } = await supabase
+          .from('time_entry_segments')
+          .insert({
             time_entry_id: entryId,
             user_id: user.id,
-            start_time: newClockIn,
-            end_time: newClockOut,
+            start_time: startIso,
+            end_time: endIso,
           } as any)
+
+        if (segmentInsertError) {
+          console.error('Error creating segment:', segmentInsertError)
+          alert('Failed to save a new work segment')
+          return
         }
-      } else if (segments.length === 1) {
-        await supabase
-          .from('time_entry_segments')
-          .update({ start_time: newClockIn, end_time: newClockOut } as any)
-          .eq('id', segments[0].id)
-      } else {
-        const first = segments[0]
-        const last = segments[segments.length - 1]
-
-        await supabase
-          .from('time_entry_segments')
-          .update({ start_time: newClockIn } as any)
-          .eq('id', first.id)
-
-        await supabase
-          .from('time_entry_segments')
-          .update({ end_time: newClockOut } as any)
-          .eq('id', last.id)
       }
     }
 
     setEditingId(null)
+    setEditSegments([])
     onUpdate()
   }
 
@@ -585,7 +637,16 @@ export default function TimeEntryList({
                     <input
                       type="datetime-local"
                       value={editForm.clock_in}
-                      onChange={(e) => setEditForm({ ...editForm, clock_in: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setEditForm({ ...editForm, clock_in: value })
+                        setEditSegments((prev) => {
+                          if (prev.length === 0) return prev
+                          const next = [...prev]
+                          next[0] = { ...next[0], start_time: value }
+                          return next
+                        })
+                      }}
                     />
                   </div>
                   <div className="form-group">
@@ -593,9 +654,59 @@ export default function TimeEntryList({
                     <input
                       type="datetime-local"
                       value={editForm.clock_out}
-                      onChange={(e) => setEditForm({ ...editForm, clock_out: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setEditForm({ ...editForm, clock_out: value })
+                        setEditSegments((prev) => {
+                          if (prev.length === 0) return prev
+                          const next = [...prev]
+                          const lastIndex = next.length - 1
+                          next[lastIndex] = { ...next[lastIndex], end_time: value }
+                          return next
+                        })
+                      }}
                     />
                   </div>
+                  {editSegments.length > 0 && (
+                    <div className="segment-edit-box">
+                      <div className="segments-title">Edit Work Segments</div>
+                      {editSegments.map((segment, index) => (
+                        <div className="segment-edit-row" key={segment.id || `new-${index}`}>
+                          <span className="segment-index">#{index + 1}</span>
+                          <input
+                            type="datetime-local"
+                            value={segment.start_time}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setEditSegments((prev) => {
+                                const next = [...prev]
+                                next[index] = { ...next[index], start_time: value }
+                                return next
+                              })
+                              if (index === 0) {
+                                setEditForm((prev) => ({ ...prev, clock_in: value }))
+                              }
+                            }}
+                          />
+                          <input
+                            type="datetime-local"
+                            value={segment.end_time}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setEditSegments((prev) => {
+                                const next = [...prev]
+                                next[index] = { ...next[index], end_time: value }
+                                return next
+                              })
+                              if (index === editSegments.length - 1) {
+                                setEditForm((prev) => ({ ...prev, clock_out: value }))
+                              }
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="form-group">
                     <label>Notes:</label>
                     <textarea

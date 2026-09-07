@@ -338,6 +338,27 @@
   font-weight: 700;
 }
 
+.segment-edit-box {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: #f9fbff;
+  border: 1px solid #dfe7ff;
+  border-radius: 6px;
+  padding: 0.6rem;
+}
+
+.segment-edit-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  align-items: center;
+}
+
+.segment-edit-row:last-child {
+  margin-bottom: 0;
+}
+
 .entry-notes {
   margin-top: 0.75rem;
   padding: 0.75rem;
